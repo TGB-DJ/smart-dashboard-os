@@ -62,7 +62,7 @@
               <div class="absolute -right-8 -bottom-12 text-[100px] opacity-[0.03] -rotate-12 group-hover:scale-110 transition-transform duration-700">💨</div>
               <div class="text-[10px] uppercase text-gray-400 font-bold tracking-[0.3em] mb-3">Atmosphere AQI</div>
               <div class="flex items-end gap-2 mt-4">
-                <div class="text-5xl font-black text-emerald-400 leading-none">{{ weatherData.aqi || '--' }}</div>
+                <div class="text-5xl font-black text-emerald-400 leading-none">{{ weatherData.aqi ?? '--' }}</div>
                 <div class="text-xs text-emerald-400/60 font-bold mb-1 tracking-widest uppercase">PM2.5</div>
               </div>
               <div class="mt-auto pt-6 h-1 w-full bg-white/5 rounded-full overflow-hidden">
@@ -74,7 +74,7 @@
             <div class="glass-panel p-8 rounded-[32px] relative overflow-hidden group">
               <div class="absolute -right-8 -bottom-12 text-[100px] opacity-[0.03] rotate-45 group-hover:scale-110 transition-transform duration-700">☀️</div>
               <div class="text-[10px] uppercase text-gray-400 font-bold tracking-[0.3em] mb-3">Ultraviolet</div>
-              <div class="text-5xl font-black text-amber-400 leading-none mt-4">{{ weatherData.uv || '--' }}</div>
+              <div class="text-5xl font-black text-amber-400 leading-none mt-4">{{ weatherData.uv ?? '--' }}</div>
               <div class="text-[10px] text-amber-400/70 mt-auto pt-6 font-bold uppercase tracking-widest">Moderate</div>
             </div>
 
@@ -83,7 +83,7 @@
               <div class="absolute -right-8 -bottom-12 text-[100px] opacity-[0.03] rotate-12 group-hover:scale-110 transition-transform duration-700">🌡️</div>
               <div class="text-[10px] uppercase text-gray-400 font-bold tracking-[0.3em] mb-3">Climate Temp</div>
               <div class="text-5xl font-black leading-none flex items-start mt-4">
-                {{ weatherData.temp || '--' }}<span class="text-2xl mt-1 ml-1 text-white/30 font-light">°C</span>
+                {{ weatherData.temp ?? '--' }}<span class="text-2xl mt-1 ml-1 text-white/30 font-light">°C</span>
               </div>
               <div class="text-[10px] text-cyan-400/70 mt-auto pt-6 font-bold uppercase tracking-widest flex items-center gap-2">
                 <span class="w-1.5 h-1.5 rounded-full bg-cyan-400"></span> Cooling Req
@@ -95,7 +95,7 @@
               <div class="absolute -right-8 -bottom-12 text-[100px] opacity-[0.03] rotate-12 group-hover:scale-110 transition-transform duration-700">💧</div>
               <div class="text-[10px] uppercase text-gray-400 font-bold tracking-[0.3em] mb-3">Humidity</div>
               <div class="text-5xl font-black leading-none flex items-start text-blue-400 mt-4">
-                {{ weatherData.humidity || '--' }}<span class="text-2xl mt-1 ml-1 text-white/30 font-light">%</span>
+                {{ weatherData.humidity ?? '--' }}<span class="text-2xl mt-1 ml-1 text-white/30 font-light">%</span>
               </div>
             </div>
 
@@ -104,7 +104,7 @@
               <div class="absolute -right-8 -bottom-12 text-[100px] opacity-[0.03] rotate-12 group-hover:scale-110 transition-transform duration-700">🌪️</div>
               <div class="text-[10px] uppercase text-gray-400 font-bold tracking-[0.3em] mb-3">Wind Speed</div>
               <div class="text-5xl font-black leading-none flex items-start text-indigo-400 mt-4">
-                {{ weatherData.windSpeed || '--' }}<span class="text-2xl mt-1 ml-1 text-white/30 font-light">km/h</span>
+                {{ weatherData.windSpeed ?? '--' }}<span class="text-2xl mt-1 ml-1 text-white/30 font-light">km/h</span>
               </div>
             </div>
 
@@ -113,7 +113,7 @@
               <div class="absolute -right-8 -bottom-12 text-[100px] opacity-[0.03] rotate-12 group-hover:scale-110 transition-transform duration-700">☔</div>
               <div class="text-[10px] uppercase text-gray-400 font-bold tracking-[0.3em] mb-3">Precipitation</div>
               <div class="text-5xl font-black leading-none flex items-start text-purple-400 mt-4">
-                {{ weatherData.precipitation || '--' }}<span class="text-2xl mt-1 ml-1 text-white/30 font-light">mm</span>
+                {{ weatherData.precipitation ?? '--' }}<span class="text-2xl mt-1 ml-1 text-white/30 font-light">mm</span>
               </div>
             </div>
 
