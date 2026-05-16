@@ -315,7 +315,7 @@
             <!-- Live weather preview -->
             <div v-if="weatherData.temp !== null" class="glass-panel p-4 rounded-xl relative group">
               <button @click="refreshWeather" class="absolute top-2 right-2 text-[10px] text-gray-500 hover:text-white transition-colors opacity-0 group-hover:opacity-100">↻ Refresh</button>
-              <div class="text-[9px] uppercase tracking-widest text-gray-500 mb-3 font-bold">Live Readings — {{ config.customLocation }}</div>
+              <div class="text-[9px] uppercase tracking-widest text-gray-500 mb-3 font-bold">Live Readings: {{ config.customLocation }}</div>
               <div class="grid grid-cols-3 gap-3 text-center">
                 <div>
                   <div class="text-lg font-black">{{ formatMetricValue(weatherData.temp, 'temp') }}°{{ config.tempUnit }}</div>
@@ -1012,7 +1012,6 @@ onMounted(() => {
   updateDate()
   renderClock()
   connectWebSocket()
-  initVoiceEngine()
 
   // Sync real battery if possible
   if (navigator.getBattery) {
@@ -1027,35 +1026,47 @@ onMounted(() => {
   
   // --- AUTO LOCATION ---
   const geoOptions = { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
-  navigator.geolocation.getCurrentPosition(
-    async (pos) => {
-      const { latitude: lat, longitude: lon } = pos.coords
-      await fetchWeatherByCoords(lat, lon)
-      
-      // Update location name via reverse geocode
-      try {
-        const r = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`)
-        const d = await r.json()
-        const city = d.address?.city || d.address?.town || d.address?.village || d.address?.suburb || d.address?.county
-        if (city) {
-          config.customLocation = city
-          showAlert(`Location: ${city}`)
+  // --- ROBUST AUTO LOCATION ---
+  const getIPLocation = async () => {
+    try {
+      const res = await fetch('https://ipapi.co/json/')
+      const data = await res.json()
+      if (data.latitude && data.longitude) {
+        await fetchWeatherByCoords(data.latitude, data.longitude)
+        if (data.city) {
+          config.customLocation = data.city
+          showAlert(`Location (IP): ${data.city}`)
         }
-      } catch(e) {
-        console.log('[GPS] Reverse Geocode failed', e)
       }
-    },
-    (err) => {
-      console.log('[GPS] Failed or Denied', err)
-      // Fallback to saved location if available
-      if (config.customLocation) {
-        const saved = config.customLocation
-        config.customLocation = ''
-        setTimeout(() => { config.customLocation = saved }, 100)
-      }
-    },
-    geoOptions
-  )
+    } catch (e) {
+      console.log('[IP Geo] Failed', e)
+    }
+  }
+
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude: lat, longitude: lon } = pos.coords
+        await fetchWeatherByCoords(lat, lon)
+        try {
+          const r = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`)
+          const d = await r.json()
+          const city = d.address?.city || d.address?.town || d.address?.village || d.address?.suburb || d.address?.county
+          if (city) {
+            config.customLocation = city
+            showAlert(`Location: ${city}`)
+          }
+        } catch(e) { console.log('[GPS] Reverse Geocode failed', e) }
+      },
+      async (err) => {
+        console.log('[GPS] Failed, trying IP fallback', err)
+        await getIPLocation()
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    )
+  } else {
+    getIPLocation()
+  }
 
   // --- AUTOMATIC REFRESH CYCLES ---
   autoRefreshInterval = setInterval(() => {
