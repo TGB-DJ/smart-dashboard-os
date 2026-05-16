@@ -45,79 +45,57 @@
         <!-- 1.2: Environment Weather Metrics -->
         <div class="flex-none w-screen h-screen snap-start p-16 flex flex-col justify-center relative" @pointerdown="startGlobalHold('environment')" @pointerup="endGlobalHold" @pointerleave="endGlobalHold">
           <h2 class="text-5xl font-black mb-12 text-white/40 italic uppercase tracking-tighter">Environment <span class="opacity-100" style="color: var(--os-indigo)">Intel</span></h2>
-          <div class="grid grid-cols-4 gap-6 z-10 w-full max-w-7xl mx-auto flex-1 max-h-[75vh]">
-            
-            <!-- Location Precision -->
-            <div class="glass-panel p-8 rounded-[32px] relative overflow-hidden group col-span-2">
-              <div class="absolute -right-8 -bottom-12 text-[150px] opacity-[0.03] rotate-12 group-hover:scale-110 transition-transform duration-700">📍</div>
-              <div class="text-[10px] uppercase text-gray-400 font-bold tracking-[0.3em] mb-3">Location Precision</div>
-              <div class="text-4xl font-black tracking-tighter truncate mt-4" style="color: var(--os-indigo); font-family: 'JetBrains Mono', monospace;">{{ config.customLocation || config.location?.name || 'AQUIRING...' }}</div>
-              <div class="text-[10px] text-white/40 mt-auto pt-6 flex items-center gap-2 uppercase tracking-widest font-bold">
-                <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div> Live GPS Lock
-              </div>
-            </div>
+          <div
+            class="grid grid-cols-4 gap-6 z-10 w-full max-w-7xl mx-auto flex-1 max-h-[75vh]"
+            @dragover.prevent
+          >
+            <div
+              v-for="(metric, idx) in config.envMetricOrder"
+              :key="metric.id"
+              :class="[
+                'glass-panel p-8 rounded-[32px] relative overflow-hidden group transition-all duration-200 cursor-grab active:cursor-grabbing',
+                metric.id === 'location' ? 'col-span-2' : '',
+                dragOverEnvIdx === idx ? 'ring-2 ring-[var(--os-indigo)] scale-[1.02]' : ''
+              ]"
+              draggable="true"
+              @dragstart="onEnvDragStart(idx)"
+              @dragover.prevent="dragOverEnvIdx = idx"
+              @dragleave="dragOverEnvIdx = null"
+              @drop.prevent="onEnvDrop(idx)"
+              @dragend="dragOverEnvIdx = null"
+            >
+              <div class="absolute -right-8 -bottom-12 text-[120px] opacity-[0.03] rotate-12 group-hover:scale-110 transition-transform duration-700">{{ metric.icon }}</div>
+              <div class="text-[10px] uppercase text-gray-400 font-bold tracking-[0.3em] mb-3">{{ metric.label }}</div>
 
-            <!-- Atmosphere AQI -->
-            <div class="glass-panel p-8 rounded-[32px] relative overflow-hidden group">
-              <div class="absolute -right-8 -bottom-12 text-[100px] opacity-[0.03] -rotate-12 group-hover:scale-110 transition-transform duration-700">💨</div>
-              <div class="text-[10px] uppercase text-gray-400 font-bold tracking-[0.3em] mb-3">Atmosphere AQI</div>
-              <div class="flex items-end gap-2 mt-4">
-                <div class="text-5xl font-black text-emerald-400 leading-none">{{ weatherData.aqi ?? '--' }}</div>
-                <div class="text-xs text-emerald-400/60 font-bold mb-1 tracking-widest uppercase">PM2.5</div>
-              </div>
-              <div class="mt-auto pt-6 h-1 w-full bg-white/5 rounded-full overflow-hidden">
-                <div class="h-full bg-emerald-400 w-[30%] shadow-[0_0_10px_#34d399]"></div>
-              </div>
-            </div>
+              <!-- Location card -->
+              <template v-if="metric.id === 'location'">
+                <div class="text-4xl font-black tracking-tighter truncate mt-4" :style="{ color: accentColor, fontFamily: 'JetBrains Mono, monospace' }">{{ config.customLocation || config.location?.name || 'ACQUIRING...' }}</div>
+                <div class="text-[10px] text-white/40 mt-auto pt-6 flex items-center gap-2 uppercase tracking-widest font-bold">
+                  <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div> Live GPS Lock
+                </div>
+              </template>
 
-            <!-- UV Index -->
-            <div class="glass-panel p-8 rounded-[32px] relative overflow-hidden group">
-              <div class="absolute -right-8 -bottom-12 text-[100px] opacity-[0.03] rotate-45 group-hover:scale-110 transition-transform duration-700">☀️</div>
-              <div class="text-[10px] uppercase text-gray-400 font-bold tracking-[0.3em] mb-3">Ultraviolet</div>
-              <div class="text-5xl font-black text-amber-400 leading-none mt-4">{{ weatherData.uv ?? '--' }}</div>
-              <div class="text-[10px] text-amber-400/70 mt-auto pt-6 font-bold uppercase tracking-widest">Moderate</div>
-            </div>
+              <!-- AQI card -->
+              <template v-else-if="metric.id === 'aqi'">
+                <div class="flex items-end gap-2 mt-4">
+                  <div class="text-5xl font-black text-emerald-400 leading-none">{{ weatherData.aqi ?? '--' }}</div>
+                  <div class="text-xs text-emerald-400/60 font-bold mb-1 tracking-widest uppercase">PM2.5</div>
+                </div>
+                <div class="mt-auto pt-6 h-1 w-full bg-white/5 rounded-full overflow-hidden">
+                  <div class="h-full bg-emerald-400 shadow-[0_0_10px_#34d399]" :style="{ width: weatherData.aqi ? Math.min(weatherData.aqi / 3, 100) + '%' : '0%' }"></div>
+                </div>
+              </template>
 
-            <!-- Climate Temp -->
-            <div class="glass-panel p-8 rounded-[32px] relative overflow-hidden group">
-              <div class="absolute -right-8 -bottom-12 text-[100px] opacity-[0.03] rotate-12 group-hover:scale-110 transition-transform duration-700">🌡️</div>
-              <div class="text-[10px] uppercase text-gray-400 font-bold tracking-[0.3em] mb-3">Climate Temp</div>
-              <div class="text-5xl font-black leading-none flex items-start mt-4">
-                {{ weatherData.temp ?? '--' }}<span class="text-2xl mt-1 ml-1 text-white/30 font-light">°C</span>
-              </div>
-              <div class="text-[10px] text-cyan-400/70 mt-auto pt-6 font-bold uppercase tracking-widest flex items-center gap-2">
-                <span class="w-1.5 h-1.5 rounded-full bg-cyan-400"></span> Cooling Req
-              </div>
-            </div>
+              <!-- Generic metric card -->
+              <template v-else>
+                <div class="text-5xl font-black leading-none flex items-start mt-4" :class="metric.color">
+                  {{ weatherData[metric.dataKey] ?? '--' }}<span class="text-2xl mt-1 ml-1 text-white/30 font-light">{{ metric.unit }}</span>
+                </div>
+                <div v-if="metric.sub" class="text-[10px] mt-auto pt-6 font-bold uppercase tracking-widest" :class="metric.color + '/70'">{{ metric.sub }}</div>
+              </template>
 
-            <!-- Humidity -->
-            <div class="glass-panel p-8 rounded-[32px] relative overflow-hidden group">
-              <div class="absolute -right-8 -bottom-12 text-[100px] opacity-[0.03] rotate-12 group-hover:scale-110 transition-transform duration-700">💧</div>
-              <div class="text-[10px] uppercase text-gray-400 font-bold tracking-[0.3em] mb-3">Humidity</div>
-              <div class="text-5xl font-black leading-none flex items-start text-blue-400 mt-4">
-                {{ weatherData.humidity ?? '--' }}<span class="text-2xl mt-1 ml-1 text-white/30 font-light">%</span>
-              </div>
             </div>
-
-            <!-- Wind Speed -->
-            <div class="glass-panel p-8 rounded-[32px] relative overflow-hidden group">
-              <div class="absolute -right-8 -bottom-12 text-[100px] opacity-[0.03] rotate-12 group-hover:scale-110 transition-transform duration-700">🌪️</div>
-              <div class="text-[10px] uppercase text-gray-400 font-bold tracking-[0.3em] mb-3">Wind Speed</div>
-              <div class="text-5xl font-black leading-none flex items-start text-indigo-400 mt-4">
-                {{ weatherData.windSpeed ?? '--' }}<span class="text-2xl mt-1 ml-1 text-white/30 font-light">km/h</span>
-              </div>
-            </div>
-
-            <!-- Precipitation -->
-            <div class="glass-panel p-8 rounded-[32px] relative overflow-hidden group">
-              <div class="absolute -right-8 -bottom-12 text-[100px] opacity-[0.03] rotate-12 group-hover:scale-110 transition-transform duration-700">☔</div>
-              <div class="text-[10px] uppercase text-gray-400 font-bold tracking-[0.3em] mb-3">Precipitation</div>
-              <div class="text-5xl font-black leading-none flex items-start text-purple-400 mt-4">
-                {{ weatherData.precipitation ?? '--' }}<span class="text-2xl mt-1 ml-1 text-white/30 font-light">mm</span>
-              </div>
-            </div>
-
-          </div><!-- /grid -->
+          </div><!-- /env grid -->
         </div><!-- /environment panel -->
 
       </div><!-- /clockStack -->
@@ -133,10 +111,12 @@
             v-for="device in automation" 
             :key="device.id"
             @click="toggleDevice(device)"
-            class="glass-panel rounded-[32px] p-8 flex flex-col justify-between cursor-pointer transition-all duration-300 transition-lcd"
-            :style="device.state ? `background: rgba(255,255,255,0.1); border-color: var(--os-indigo); box-shadow: 0 0 40px var(--os-indigo)` : ''"
+            class="glass-panel rounded-[32px] p-8 flex flex-col justify-between cursor-pointer transition-all duration-300"
+            :style="device.state
+              ? `background: rgba(255,255,255,0.1); border-color: ${device.color || 'var(--os-indigo)'}; box-shadow: 0 0 40px ${device.color || 'var(--os-indigo)'}`
+              : ''"
           >
-            <div class="text-4xl mb-4">{{ device.icon }}</div>
+            <div class="text-4xl mb-4" :style="{ color: device.color || 'inherit' }">{{ device.icon }}</div>
             <div>
               <div class="text-2xl font-bold mb-1 leading-tight">{{ device.name }}</div>
               <div class="text-[10px] uppercase tracking-widest" :class="device.state ? 'text-white' : 'text-gray-500'">
@@ -166,7 +146,17 @@
           <h1 class="text-6xl font-black mb-12 text-white/40 italic uppercase tracking-tighter">Device <span class="opacity-100" style="color: var(--os-indigo)">Health</span></h1>
           <div class="grid grid-cols-3 gap-6">
             
-            <div v-for="mId in config.visibleMetrics" :key="mId" class="glass-panel p-8 rounded-[32px] flex items-center gap-6 group hover:scale-[1.02] transition-transform relative overflow-hidden">
+            <div
+              v-for="(mId, idx) in config.visibleMetrics" :key="mId"
+              class="glass-panel p-8 rounded-[32px] flex items-center gap-6 group hover:scale-[1.02] transition-all relative overflow-hidden cursor-grab active:cursor-grabbing"
+              :class="dragOverHealthIdx === idx ? 'ring-2 ring-[var(--os-indigo)] scale-[1.02]' : ''"
+              draggable="true"
+              @dragstart="onHealthDragStart(idx)"
+              @dragover.prevent="dragOverHealthIdx = idx"
+              @dragleave="dragOverHealthIdx = null"
+              @drop.prevent="onHealthDrop(idx)"
+              @dragend="dragOverHealthIdx = null"
+            >
               <div class="absolute inset-0 bg-gradient-to-r from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
               
               <div v-if="getMetricDef(mId).iconColor === 'indigo' || getMetricDef(mId).iconColor === 'white'" class="text-4xl font-black flex items-baseline z-10" :style="{ color: 'var(--os-indigo)' }">
@@ -312,25 +302,73 @@
         </div>
 
         <!-- ================= SMART HOME OPTIONS ================= -->
-        <div v-if="isEditMode === 'smarthome'" class="space-y-10 animate-fade-in">
-          <!-- Smart Home Manager -->
-          <div>
-            <div class="flex justify-between items-center mb-4">
-              <h3 class="text-xs text-gray-400 font-bold uppercase tracking-widest">Smart Devices ({{ automation.length }}/10)</h3>
-              <button v-if="automation.length < 10" @click="addMockDevice" class="px-4 py-2 glass-panel rounded-full text-[10px] font-black text-white/80 uppercase hover:bg-white/10 transition-colors">+ Add Node</button>
-            </div>
-            <div class="flex flex-col gap-3">
-              <div v-for="dev in automation" :key="dev.id" class="px-5 py-3 glass-panel rounded-xl flex items-center justify-between group">
-                 <div class="flex flex-col gap-1 flex-1">
-                   <div class="flex items-center gap-4">
-                     <span class="text-xl">{{ dev.icon }}</span>
-                     <input type="text" v-model="dev.name" @blur="syncDevices" class="bg-transparent border-b-2 border-transparent hover:border-white/20 focus:border-[var(--os-indigo)] focus:outline-none font-bold text-sm text-white w-full transition-colors py-1" />
-                   </div>
-                   <div class="flex items-center gap-4 pl-10">
-                     <input type="text" v-model="dev.ip" @blur="syncDevices" placeholder="IP Address (192.168.1.x) or MQTT Topic" class="bg-transparent text-[10px] text-gray-500 font-mono tracking-widest focus:outline-none focus:text-[var(--os-indigo)] w-full transition-colors" />
-                   </div>
-                 </div>
-                 <button @click="removeDevice(dev.id)" class="ml-4 w-8 h-8 rounded-full bg-red-500/20 text-red-500 flex items-center justify-center text-xs font-black hover:bg-red-500/40 transition-colors opacity-0 group-hover:opacity-100">✕</button>
+        <div v-if="isEditMode === 'smarthome'" class="space-y-6 animate-fade-in">
+          <div class="flex justify-between items-center">
+            <h3 class="text-xs text-gray-400 font-bold uppercase tracking-widest">Smart Devices ({{ automation.length }}/10)</h3>
+            <button v-if="automation.length < 10" @click="addMockDevice" class="px-4 py-2 glass-panel rounded-full text-[10px] font-black text-white/80 uppercase hover:bg-white/10 transition-colors">+ Add Node</button>
+          </div>
+
+          <!-- Device List -->
+          <div class="flex flex-col gap-3">
+            <div v-for="dev in automation" :key="dev.id" class="glass-panel rounded-2xl overflow-hidden">
+
+              <!-- Device Row -->
+              <div class="px-5 py-3 flex items-center justify-between group">
+                <div class="flex items-center gap-3 flex-1 min-w-0">
+                  <!-- Icon Button -->
+                  <button
+                    @click.stop="startEditDevice(dev)"
+                    class="text-2xl w-10 h-10 rounded-xl flex items-center justify-center border-2 transition-all flex-shrink-0"
+                    :style="{ borderColor: editingDeviceId === dev.id ? (dev.color || accentColor) : 'transparent', background: editingDeviceId === dev.id ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.03)' }"
+                  >{{ dev.icon }}</button>
+                  <!-- Name -->
+                  <input type="text" v-model="dev.name" class="bg-transparent border-b-2 border-transparent hover:border-white/20 focus:border-[var(--os-indigo)] focus:outline-none font-bold text-sm text-white flex-1 min-w-0 transition-colors py-1" />
+                </div>
+                <button @click="removeDevice(dev.id)" class="ml-3 w-7 h-7 rounded-full bg-red-500/20 text-red-500 flex items-center justify-center text-xs font-black hover:bg-red-500/40 transition-all opacity-0 group-hover:opacity-100 flex-shrink-0">✕</button>
+              </div>
+
+              <!-- Expanded Edit Panel -->
+              <div v-if="editingDeviceId === dev.id" class="border-t border-white/5 px-5 py-4 space-y-4 animate-fade-in">
+
+                <!-- Color Picker -->
+                <div>
+                  <div class="text-[9px] uppercase tracking-widest text-gray-500 font-bold mb-2">Accent Color</div>
+                  <div class="flex flex-wrap gap-2">
+                    <button
+                      v-for="c in deviceColors" :key="c.hex"
+                      @click="setDeviceColor(dev, c.hex)"
+                      class="w-8 h-8 rounded-full border-2 transition-transform hover:scale-110"
+                      :style="{ backgroundColor: c.hex, borderColor: dev.color === c.hex ? '#fff' : 'transparent', transform: dev.color === c.hex ? 'scale(1.2)' : 'scale(1)' }"
+                    ></button>
+                  </div>
+                </div>
+
+                <!-- IP Address -->
+                <div>
+                  <div class="text-[9px] uppercase tracking-widest text-gray-500 font-bold mb-2">IP / MQTT Topic</div>
+                  <input type="text" v-model="dev.ip" placeholder="192.168.1.x or mqtt/topic" class="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs font-mono text-gray-300 focus:outline-none focus:border-[var(--os-indigo)] transition-colors" />
+                </div>
+
+                <!-- Icon Picker Toggle -->
+                <div>
+                  <button @click="showIconPicker = !showIconPicker" class="text-[9px] uppercase tracking-widest text-gray-400 font-bold flex items-center gap-2 hover:text-white transition-colors">
+                    <span>{{ showIconPicker ? '▲' : '▼' }}</span> Pick Icon
+                  </button>
+                  <div v-if="showIconPicker" class="mt-3 space-y-3 max-h-72 overflow-y-auto no-scrollbar">
+                    <div v-for="(icons, cat) in deviceIconLib" :key="cat">
+                      <div class="text-[8px] uppercase tracking-widest text-gray-600 font-bold mb-1">{{ cat }}</div>
+                      <div class="flex flex-wrap gap-2">
+                        <button
+                          v-for="ic in icons" :key="ic"
+                          @click="setDeviceIcon(dev, ic)"
+                          class="text-xl w-9 h-9 rounded-lg flex items-center justify-center transition-all hover:scale-110"
+                          :class="dev.icon === ic ? 'bg-white/15 ring-1 ring-white/40' : 'bg-white/5 hover:bg-white/10'"
+                        >{{ ic }}</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
               </div>
             </div>
           </div>
@@ -347,6 +385,16 @@
 import { ref, onMounted, onUnmounted, computed, watch, reactive } from 'vue'
 
 // --- GLOBAL STATE ---
+const ENV_METRIC_DEFAULT = [
+  { id: 'location', label: 'Location Precision', icon: '📍' },
+  { id: 'aqi',      label: 'Atmosphere AQI',     icon: '💨' },
+  { id: 'uv',       label: 'Ultraviolet',         icon: '☀️', dataKey: 'uv',          unit: '',    color: 'text-amber-400', sub: 'UV Index' },
+  { id: 'temp',     label: 'Climate Temp',        icon: '🌡️', dataKey: 'temp',        unit: '°C',  color: 'text-white',    sub: 'Cooling Req' },
+  { id: 'humidity', label: 'Humidity',            icon: '💧', dataKey: 'humidity',    unit: '%',   color: 'text-blue-400',  sub: null },
+  { id: 'wind',     label: 'Wind Speed',          icon: '🌪️', dataKey: 'windSpeed',   unit: 'km/h',color: 'text-indigo-400',sub: null },
+  { id: 'precip',   label: 'Precipitation',       icon: '☔', dataKey: 'precipitation',unit: 'mm', color: 'text-purple-400',sub: null }
+]
+
 const savedConfig = localStorage.getItem('osConfig')
 const initialConfig = savedConfig ? JSON.parse(savedConfig) : {
   clockEngine: 'DIGITAL',
@@ -355,8 +403,11 @@ const initialConfig = savedConfig ? JSON.parse(savedConfig) : {
   analogSweep: false,
   showSeconds: true,
   customLocation: '',
-  visibleMetrics: ['battery', 'temp', 'cpu', 'storage', 'ram', 'ping']
+  visibleMetrics: ['battery', 'temp', 'cpu', 'storage', 'ram', 'ping'],
+  envMetricOrder: ENV_METRIC_DEFAULT
 }
+// Backfill missing keys for existing saved configs
+if (!initialConfig.envMetricOrder) initialConfig.envMetricOrder = ENV_METRIC_DEFAULT
 
 const config = reactive(initialConfig)
 
@@ -446,6 +497,68 @@ async function useGPSLocation() {
     showAlert('GPS permission denied')
     isLocating.value = false
   })
+}
+
+// --- DRAG TO REORDER ---
+const dragEnvFromIdx = ref(null)
+const dragOverEnvIdx = ref(null)
+const dragHealthFromIdx = ref(null)
+const dragOverHealthIdx = ref(null)
+
+function onEnvDragStart(idx) { dragEnvFromIdx.value = idx }
+function onEnvDrop(toIdx) {
+  if (dragEnvFromIdx.value === null || dragEnvFromIdx.value === toIdx) return
+  const arr = [...config.envMetricOrder]
+  const [item] = arr.splice(dragEnvFromIdx.value, 1)
+  arr.splice(toIdx, 0, item)
+  config.envMetricOrder = arr
+  dragEnvFromIdx.value = null
+  dragOverEnvIdx.value = null
+}
+function onHealthDragStart(idx) { dragHealthFromIdx.value = idx }
+function onHealthDrop(toIdx) {
+  if (dragHealthFromIdx.value === null || dragHealthFromIdx.value === toIdx) return
+  const arr = [...config.visibleMetrics]
+  const [item] = arr.splice(dragHealthFromIdx.value, 1)
+  arr.splice(toIdx, 0, item)
+  config.visibleMetrics = arr
+  dragHealthFromIdx.value = null
+  dragOverHealthIdx.value = null
+}
+
+// --- DEVICE ICON LIBRARY ---
+const deviceIconLib = {
+  'Lights':    ['💡','🔦','🕯️','🪔','🌟','💫','✨','🔆','🌠','🎇'],
+  'Climate':   ['❄️','🌡️','🌬️','💨','🌀','🔥','♨️','🌊','🌤️','⛅'],
+  'Fans':      ['🌪️','🍃','💭','🌫️','🌈','⚡','🔄','🔃','↩️','🔁'],
+  'Appliances':['📺','🖥️','🎮','📻','🎵','🎶','🔊','📡','⌨️','🖱️'],
+  'Security':  ['🔒','🔐','🚨','📹','👁️','🛡️','🔑','🗝️','🚪','🪟'],
+  'Power':     ['🔌','🔋','⚡','🔆','🌐','🖧','🛜','📶','💻','🖨️'],
+  'Kitchen':   ['🍳','☕','🫖','🥤','🧊','🧺','🫙','🍽️','🥘','🫕'],
+  'Other':     ['🏠','🌿','🛁','🚿','🧹','🪴','🛋️','🪞','🛏️','🪑']
+}
+
+const deviceColors = [
+  { name: 'Indigo',  hex: '#6366f1' }, { name: 'Emerald', hex: '#10b981' },
+  { name: 'Amber',   hex: '#f59e0b' }, { name: 'Rose',    hex: '#f43f5e' },
+  { name: 'Cyan',    hex: '#06b6d4' }, { name: 'Violet',  hex: '#8b5cf6' },
+  { name: 'Pink',    hex: '#ec4899' }, { name: 'Lime',    hex: '#84cc16' },
+  { name: 'Orange',  hex: '#f97316' }, { name: 'White',   hex: '#ffffff' }
+]
+
+const editingDeviceId = ref(null)
+const showIconPicker = ref(false)
+
+function startEditDevice(dev) {
+  editingDeviceId.value = editingDeviceId.value === dev.id ? null : dev.id
+  showIconPicker.value = false
+}
+function setDeviceIcon(dev, icon) {
+  dev.icon = icon
+  showIconPicker.value = false
+}
+function setDeviceColor(dev, hex) {
+  dev.color = hex
 }
 
 let weatherTimer = null
