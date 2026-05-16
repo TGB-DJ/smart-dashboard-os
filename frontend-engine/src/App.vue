@@ -191,6 +191,14 @@
       </div>
     </div>
 
+    <!-- GLOBAL BRANDING FOOTER -->
+    <div class="fixed bottom-6 right-8 z-[50] flex items-center gap-3 pointer-events-none select-none opacity-40 hover:opacity-100 transition-opacity duration-500">
+      <div class="h-[1px] w-8 bg-gradient-to-r from-transparent to-white/40"></div>
+      <div class="text-[9px] font-black uppercase tracking-[0.4em] text-white/60 whitespace-nowrap" style="font-family: 'Inter', sans-serif;">
+        CJ <span class="text-white">PRODUCTION</span> <span class="opacity-40">© 2026</span>
+      </div>
+    </div>
+
     <!-- GLOBAL EDIT MODE OVERLAY (Sliding Drawer for Live Previews) -->
     <div 
       class="fixed top-0 bottom-0 right-0 w-[500px] bg-os-bg/90 backdrop-blur-[64px] z-[200] p-10 flex flex-col border-l border-white/10 shadow-[0_0_100px_rgba(0,0,0,0.8)] text-white transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]"
@@ -391,6 +399,13 @@
           </div>
         </div>
 
+      </div>
+
+      <!-- Customizer Footer Branding -->
+      <div class="mt-auto pt-10 pb-4 opacity-30 text-center flex flex-col items-center">
+        <div class="h-[1px] w-12 bg-white/20 mb-6"></div>
+        <div class="text-[10px] font-black uppercase tracking-[0.5em] text-white">CJ PRODUCTION</div>
+        <div class="text-[8px] uppercase tracking-widest mt-2 font-bold text-white/60">Standard Edition — Core v1.0.4</div>
       </div>
     </div>
 
@@ -656,7 +671,8 @@ const currentGreeting = ref('Systems nominal.')
 const greetingsLib = [
   "Systems nominal, Commander.", "Awaiting input.", "Dashboard OS operational.", 
   "All protocols green.", "Environment stable.", "Good to see you.", 
-  "Sensors calibrated.", "Network synced.", "Power levels optimal."
+  "Sensors calibrated.", "Network synced.", "Power levels optimal.",
+  "CJ PRODUCTION Core active.", "Premium OS calibrated."
 ]
 function updateGreeting() {
   const hour = new Date().getHours()
