@@ -23,7 +23,7 @@
         <!-- 1.1: Clock Node -->
         <div 
           class="flex-none w-screen h-screen snap-start relative flex flex-col items-center justify-center cursor-pointer group"
-          @pointerdown="startGlobalHold"
+          @pointerdown="startGlobalHold('clock')"
           @pointerup="endGlobalHold"
           @pointerleave="endGlobalHold"
         >
@@ -305,38 +305,7 @@
       </div>
     </div>
 
-    <!-- CALENDAR FULL AGENDA MODAL -->
-    <div 
-      class="fixed inset-0 z-[300] bg-os-bg/95 backdrop-blur-[64px] flex flex-col transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]"
-      :class="showCalendarDetails ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'"
-    >
-      <div class="p-16 flex-1 flex flex-col h-full max-w-6xl mx-auto w-full relative transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]" :class="showCalendarDetails ? 'translate-y-0 scale-100' : 'translate-y-20 scale-95'">
-        <button @click="showCalendarDetails = false" class="absolute top-16 right-16 w-16 h-16 rounded-full glass-panel flex items-center justify-center text-xl hover:bg-white/10 hover:scale-110 transition-all font-black border-2 border-white/10">✕</button>
-        
-        <h2 class="text-6xl font-black italic uppercase tracking-tighter mb-4 text-white/40">Google <span class="opacity-100" style="color: var(--os-indigo)">Calendar</span></h2>
-        <div class="text-xl text-gray-400 font-bold tracking-widest uppercase mb-12 flex items-center gap-4">
-          <div class="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></div> Live Sync Active
-        </div>
-        
-        <div class="flex-1 overflow-y-auto no-scrollbar space-y-6 pr-4 pb-16">
-          <div v-if="calendarEvents.length === 0" class="text-white/40 italic p-8 text-center text-xl font-bold">No upcoming events or syncing...</div>
-          <div v-for="(evt, idx) in calendarEvents" :key="evt.id" class="glass-panel p-8 rounded-[32px] flex items-center gap-10 hover:scale-[1.01] transition-transform cursor-pointer border-l-4" :style="{ borderLeftColor: idx===0 ? 'var(--os-indigo)' : 'transparent' }">
-             <div class="w-28 h-28 rounded-2xl flex flex-col items-center justify-center border-2" :style="{ borderColor: idx===0 ? 'var(--os-indigo)' : 'rgba(255,255,255,0.1)', backgroundColor: idx===0 ? 'var(--os-indigo)10' : 'transparent' }">
-               <div class="text-sm font-black uppercase tracking-widest" :class="idx===0 ? 'text-[var(--os-indigo)]' : 'text-gray-500'">{{ new Date(evt.start.dateTime || evt.start.date).toLocaleString('default', { month: 'short' }) }}</div>
-               <div class="text-4xl font-black" :class="idx===0 ? 'text-[var(--os-indigo)]' : 'text-white'">{{ new Date(evt.start.dateTime || evt.start.date).getDate() }}</div>
-             </div>
-             <div class="flex-1">
-               <div class="text-xs uppercase tracking-[0.2em] font-bold mb-3" :class="idx===0 ? 'text-[var(--os-indigo)]' : 'text-gray-500'">{{ idx===0 ? 'Next Event' : 'Upcoming' }}</div>
-               <div class="text-4xl font-black mb-3">{{ evt.summary }}</div>
-               <div class="text-xl text-white/50 font-bold">
-                 {{ new Date(evt.start.dateTime || evt.start.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) }} 
-                 <span v-if="evt.location"> • {{ evt.location }}</span>
-               </div>
-             </div>
-          </div>
-        </div>
-      </div>
-    </div>
+
   </div>
 </template>
 
