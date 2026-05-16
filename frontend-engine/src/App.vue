@@ -1011,30 +1011,36 @@ onMounted(() => {
   }
 
   
-  // Auto-load weather: GPS first, else restore saved location
+  // --- AUTO LOCATION ---
+  const geoOptions = { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
   navigator.geolocation.getCurrentPosition(
     async (pos) => {
-      const lat = pos.coords.latitude
-      const lon = pos.coords.longitude
+      const { latitude: lat, longitude: lon } = pos.coords
       await fetchWeatherByCoords(lat, lon)
-      // Set display name via reverse geocode
+      
+      // Update location name via reverse geocode
       try {
         const r = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`)
         const d = await r.json()
-        const city = d.address?.city || d.address?.town || d.address?.village || d.address?.county || `${lat.toFixed(2)}, ${lon.toFixed(2)}`
-        if (!config.customLocation) config.customLocation = city
-      } catch {
-        if (!config.customLocation) config.customLocation = `${lat.toFixed(4)}, ${lon.toFixed(4)}`
+        const city = d.address?.city || d.address?.town || d.address?.village || d.address?.suburb || d.address?.county
+        if (city) {
+          config.customLocation = city
+          showAlert(`Location: ${city}`)
+        }
+      } catch(e) {
+        console.log('[GPS] Reverse Geocode failed', e)
       }
     },
-    async () => {
-      // GPS denied — use saved location if available
+    (err) => {
+      console.log('[GPS] Failed or Denied', err)
+      // Fallback to saved location if available
       if (config.customLocation) {
         const saved = config.customLocation
         config.customLocation = ''
-        setTimeout(() => { config.customLocation = saved }, 50)
+        setTimeout(() => { config.customLocation = saved }, 100)
       }
-    }
+    },
+    geoOptions
   )
 })
 
