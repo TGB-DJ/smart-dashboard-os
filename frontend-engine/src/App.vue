@@ -851,25 +851,32 @@ function handleKeydown(e) {
   if (e.key === ' ') { e.preventDefault(); startVoiceRecognition() }
 }
 
-// --- WEBSOCKET ENGINE ---
+// --- WEBSOCKET ENGINE (LAN only — skipped on cloud hosting) ---
 let ws = null
 function connectWebSocket() {
-  const wsUrl = `ws://${window.location.hostname}:3333/api/live-stream`
-  ws = new WebSocket(wsUrl)
-  
-  ws.onmessage = (event) => {
-    try {
-      const data = JSON.parse(event.data)
-      if (data.type === 'INIT_STATE' || data.type === 'SYNC_STATE') {
-         if (data.type === 'INIT_STATE' && automation.value.length === 0) {
+  const host = window.location.hostname
+  // Only connect if running on localhost or a LAN IP — never on Netlify
+  const isLocal = host === 'localhost' || host === '127.0.0.1' || /^192\.168\./.test(host) || /^10\./.test(host)
+  if (!isLocal) return
+
+  const wsUrl = `ws://${host}:3333/api/live-stream`
+  try {
+    ws = new WebSocket(wsUrl)
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data)
+        if (data.type === 'INIT_STATE' || data.type === 'SYNC_STATE') {
+          if (data.type === 'INIT_STATE' && automation.value.length === 0) {
             automation.value = data.payload.automation
-         }
-         telemetry.value = { ...telemetry.value, ...data.payload.telemetry, weather: data.payload.weather }
-         if(data.config) config.value = data.config
-      }
-    } catch(e) {}
-  }
-  ws.onclose = () => { setTimeout(connectWebSocket, 5000) }
+          }
+          telemetry.value = { ...telemetry.value, ...data.payload.telemetry, weather: data.payload.weather }
+          if (data.config) config.value = data.config
+        }
+      } catch(e) {}
+    }
+    ws.onclose = () => { setTimeout(connectWebSocket, 5000) }
+    ws.onerror = () => { ws = null } // Fail silently
+  } catch(e) {}
 }
 
 function toggleDevice(device) {

@@ -6,5 +6,19 @@ export default defineConfig({
   server: {
     port: 5555,
     host: true
+  },
+  build: {
+    target: 'es2015',
+    minify: 'esbuild',
+    cssMinify: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vue: ['vue']
+        }
+      }
+    },
+    // Warn on chunks > 500kb
+    chunkSizeWarningLimit: 500
   }
 })
