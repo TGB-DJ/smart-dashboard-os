@@ -33,7 +33,20 @@
           <!-- HTML Overlay for Digital Clock (Prevents Jitter via tabular-nums) -->
           <div v-if="config.clockEngine === 'DIGITAL'" class="absolute z-10 flex flex-col items-center justify-center font-black pointer-events-none transition-lcd select-none" :style="{ fontFamily: config.typography, color: accentColor, opacity: isChangingClock ? 0 : 1 }">
              <div class="text-[180px] leading-none whitespace-nowrap tracking-tighter" style="font-variant-numeric: tabular-nums;">{{ digitalTimeString }}</div>
-             <div class="text-2xl font-bold tracking-[0.5em] uppercase mt-2 text-white/60" style="font-family: 'Inter', sans-serif;">{{ digitalDateString }}</div>
+
+             <!-- Date + Live Temp -->
+             <div class="flex items-center gap-5 mt-2" style="font-family: 'Inter', sans-serif;">
+               <div class="text-2xl font-bold tracking-[0.5em] uppercase text-white/60">{{ digitalDateString }}</div>
+               <div v-if="weatherData.temp !== null"
+                 class="px-4 py-1.5 rounded-full border text-lg font-black tracking-widest"
+                 :style="{ borderColor: accentColor + '60', background: accentColor + '15', color: accentColor }"
+               >{{ displayTemp }}{{ config.tempUnit === 'F' ? '°F' : '°C' }}</div>
+             </div>
+
+             <!-- Location name -->
+             <div v-if="config.customLocation" class="mt-3 text-sm font-bold tracking-[0.3em] uppercase text-white/30 flex items-center gap-2" style="font-family: 'Inter', sans-serif;">
+               <span class="text-xs opacity-60">📍</span> {{ config.customLocation }}
+             </div>
           </div>
           
           <!-- Smart Greeting -->
@@ -213,7 +226,10 @@
           <div v-if="config.clockEngine === 'DIGITAL'" class="mb-10 animate-fade-in">
             <div class="flex items-center justify-between mb-4">
               <div class="text-sm font-bold text-gray-400 uppercase tracking-widest">Typography Face</div>
-              <button @click="config.showSeconds = !config.showSeconds" class="text-xs px-3 py-1.5 rounded-full font-bold transition-colors" :style="config.showSeconds ? 'background: var(--os-indigo); color: white' : 'background: rgba(255,255,255,0.1); color: #aaa'">SECONDS: {{ config.showSeconds ? 'ON' : 'OFF' }}</button>
+              <div class="flex items-center gap-2">
+                <button @click="config.showSeconds = !config.showSeconds" class="text-xs px-3 py-1.5 rounded-full font-bold transition-colors" :style="config.showSeconds ? 'background: var(--os-indigo); color: white' : 'background: rgba(255,255,255,0.1); color: #aaa'">SECONDS: {{ config.showSeconds ? 'ON' : 'OFF' }}</button>
+                <button @click="config.tempUnit = config.tempUnit === 'C' ? 'F' : 'C'" class="text-xs px-3 py-1.5 rounded-full font-bold transition-colors" :style="'background: var(--os-indigo); color: white'">°{{ config.tempUnit }}</button>
+              </div>
             </div>
             <div class="h-64 overflow-y-auto no-scrollbar grid grid-cols-2 gap-3 pr-2">
               <div v-for="font in availableFonts" :key="font" @click="changeClockSetting('typography', font)" 
@@ -402,6 +418,7 @@ const initialConfig = savedConfig ? JSON.parse(savedConfig) : {
   analogStyle: 'Standard',
   analogSweep: false,
   showSeconds: true,
+  tempUnit: 'C',
   customLocation: '',
   visibleMetrics: ['battery', 'temp', 'cpu', 'storage', 'ram', 'ping'],
   envMetricOrder: ENV_METRIC_DEFAULT
@@ -441,6 +458,12 @@ const digitalTimeString = computed(() => {
 
 const digitalDateString = computed(() => {
   return currentTime.value.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+})
+
+const displayTemp = computed(() => {
+  if (weatherData.value.temp === null) return null
+  if (config.tempUnit === 'F') return Math.round(weatherData.value.temp * 9 / 5 + 32)
+  return Math.round(weatherData.value.temp * 10) / 10
 })
 
 const isLocating = ref(false)
