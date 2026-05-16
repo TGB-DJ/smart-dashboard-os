@@ -32,13 +32,13 @@
           
           <!-- HTML Overlay for Digital Clock (Stable tabular layout) -->
           <div v-if="config.clockEngine === 'DIGITAL'" class="absolute z-10 flex flex-col items-center justify-center font-black pointer-events-none transition-lcd select-none" :style="{ fontFamily: config.typography, color: accentColor, opacity: isChangingClock ? 0 : 1 }">
-             <div class="text-[180px] leading-none whitespace-nowrap flex items-baseline gap-1" style="font-variant-numeric: tabular-nums;">
-               <span class="inline-block w-[1.1ch] text-center">{{ digitalTimeParts.hh }}</span>
-               <span class="opacity-40 animate-pulse">:</span>
-               <span class="inline-block w-[1.1ch] text-center">{{ digitalTimeParts.mm }}</span>
+             <div class="text-[180px] leading-none whitespace-nowrap flex items-baseline" style="font-variant-numeric: tabular-nums;">
+               <span class="inline-block w-[1ch] text-center">{{ digitalTimeParts.hh }}</span>
+               <span class="opacity-60">:</span>
+               <span class="inline-block w-[1ch] text-center">{{ digitalTimeParts.mm }}</span>
                <template v-if="config.showSeconds">
-                 <span class="opacity-40 animate-pulse text-[0.8em]">:</span>
-                 <span class="inline-block w-[1.1ch] text-center text-[0.8em]">{{ digitalTimeParts.ss }}</span>
+                 <span class="opacity-60 text-[0.8em]">:</span>
+                 <span class="inline-block w-[1ch] text-center text-[0.8em]">{{ digitalTimeParts.ss }}</span>
                </template>
              </div>
 
@@ -481,16 +481,7 @@ const weatherData = ref({ temp: null, aqi: null, uv: null, humidity: null, windS
 
 const currentTime = ref(new Date())
 let timeInterval = null
-
-onMounted(() => {
-  timeInterval = setInterval(() => {
-    currentTime.value = new Date()
-  }, 200)
-})
-
-onUnmounted(() => {
-  if (timeInterval) clearInterval(timeInterval)
-})
+let autoRefreshInterval = null
 
 const digitalTimeParts = computed(() => {
   const date = currentTime.value
@@ -729,7 +720,6 @@ const isListening = ref(false)
 const clockStack = ref(null)
 const viewport = ref(null)
 const isChangingClock = ref(false)
-let autoRefreshInterval = null
 const showCalendarDetails = ref(false)
 const calendarEvents = ref([])
 
@@ -804,6 +794,7 @@ function renderClock() {
   
   ctx.clearRect(0, 0, width, height)
   const now = new Date()
+  currentTime.value = now // Sync digital clock with analog frame
   
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
@@ -1071,7 +1062,6 @@ onUnmounted(() => {
   window.removeEventListener('keydown', handleKeydown)
   if (clockAnimFrame) cancelAnimationFrame(clockAnimFrame)
   if (ws) ws.close()
-  if (timeInterval) clearInterval(timeInterval)
   if (autoRefreshInterval) clearInterval(autoRefreshInterval)
 })
 
