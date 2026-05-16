@@ -1,5 +1,5 @@
 <template>
-  <div class="h-screen w-screen bg-os-bg overflow-hidden fixed inset-0 font-sans select-none" :style="{ '--os-indigo': accentColor }">
+  <div class="h-screen w-screen bg-os-bg overflow-hidden fixed inset-0 font-sans select-none" :style="{ '--os-indigo': accentColor }" @click="handleGlobalClick">
     
     <!-- SYSTEM ALERT LAYER (Dynamic Island) -->
     <Transition name="island">
@@ -30,9 +30,17 @@
           <!-- WebGL/Canvas Fallback for Time -->
           <canvas ref="clockCanvas" class="absolute inset-0 pointer-events-none z-0" width="1560" height="720"></canvas>
           
-          <!-- HTML Overlay for Digital Clock (Prevents Jitter via tabular-nums) -->
+          <!-- HTML Overlay for Digital Clock (Stable tabular layout) -->
           <div v-if="config.clockEngine === 'DIGITAL'" class="absolute z-10 flex flex-col items-center justify-center font-black pointer-events-none transition-lcd select-none" :style="{ fontFamily: config.typography, color: accentColor, opacity: isChangingClock ? 0 : 1 }">
-             <div class="text-[180px] leading-none whitespace-nowrap tracking-tighter" style="font-variant-numeric: tabular-nums;">{{ digitalTimeString }}</div>
+             <div class="text-[180px] leading-none whitespace-nowrap flex items-baseline gap-1" style="font-variant-numeric: tabular-nums;">
+               <span class="inline-block w-[1.1ch] text-center">{{ digitalTimeParts.hh }}</span>
+               <span class="opacity-40 animate-pulse">:</span>
+               <span class="inline-block w-[1.1ch] text-center">{{ digitalTimeParts.mm }}</span>
+               <template v-if="config.showSeconds">
+                 <span class="opacity-40 animate-pulse text-[0.8em]">:</span>
+                 <span class="inline-block w-[1.1ch] text-center text-[0.8em]">{{ digitalTimeParts.ss }}</span>
+               </template>
+             </div>
 
              <!-- Date + Live Temp -->
              <div class="flex items-center gap-5 mt-2" style="font-family: 'Inter', sans-serif;">
@@ -222,7 +230,7 @@
 
     <!-- GLOBAL EDIT MODE OVERLAY (Sliding Drawer for Live Previews) -->
     <div 
-      class="fixed top-0 bottom-0 right-0 w-[500px] bg-os-bg/90 backdrop-blur-[64px] z-[200] p-10 flex flex-col border-l border-white/10 shadow-[0_0_100px_rgba(0,0,0,0.8)] text-white transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]"
+      class="edit-drawer fixed top-0 bottom-0 right-0 w-[500px] bg-os-bg/90 backdrop-blur-[64px] z-[200] p-10 flex flex-col border-l border-white/10 shadow-[0_0_100px_rgba(0,0,0,0.8)] text-white transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]"
       :style="{ transform: isEditMode ? 'translateX(0)' : 'translateX(100%)' }"
     >
       <div class="flex justify-between items-center mb-8">
@@ -484,13 +492,12 @@ onUnmounted(() => {
   if (timeInterval) clearInterval(timeInterval)
 })
 
-const digitalTimeString = computed(() => {
-  return currentTime.value.toLocaleTimeString('en-US', { 
-    hour12: false, 
-    hour: '2-digit', 
-    minute: '2-digit', 
-    second: config.showSeconds ? '2-digit' : undefined 
-  })
+const digitalTimeParts = computed(() => {
+  const date = currentTime.value
+  const hh = date.getHours().toString().padStart(2, '0')
+  const mm = date.getMinutes().toString().padStart(2, '0')
+  const ss = date.getSeconds().toString().padStart(2, '0')
+  return { hh, mm, ss }
 })
 
 const digitalDateString = computed(() => {
@@ -990,6 +997,16 @@ watch(telemetry, (newVal) => {
 function showAlert(msg) {
   alertMessage.value = msg
   setTimeout(() => { alertMessage.value = '' }, 3000)
+}
+
+function handleGlobalClick(e) {
+  // If edit mode is on and we click outside the drawer, close it
+  if (isEditMode.value) {
+    const drawer = document.querySelector('.edit-drawer')
+    if (drawer && !drawer.contains(e.target)) {
+      isEditMode.value = false
+    }
+  }
 }
 
 // --- LIFECYCLE ---
