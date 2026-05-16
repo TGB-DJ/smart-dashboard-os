@@ -255,8 +255,39 @@
           <!-- Location Picker -->
           <div>
             <h3 class="text-xs text-gray-400 font-bold uppercase tracking-widest mb-4">Dashboard Location</h3>
-            <input type="text" v-model="config.customLocation" placeholder="Enter City (e.g. New York, London)" class="w-full bg-white/5 border-2 border-white/10 rounded-xl px-4 py-3 font-bold text-white focus:outline-none focus:border-[var(--os-indigo)] transition-colors mb-2" />
-            <div class="text-[10px] text-gray-500 uppercase tracking-widest">Controls the Environment Intel weather data.</div>
+            <div class="flex gap-3 mb-3">
+              <input type="text" v-model="config.customLocation" placeholder="Enter city (e.g. Chennai, London)" class="flex-1 bg-white/5 border-2 border-white/10 rounded-xl px-4 py-3 font-bold text-white focus:outline-none focus:border-[var(--os-indigo)] transition-colors" />
+              <button
+                @click="useGPSLocation"
+                :disabled="isLocating"
+                class="px-4 py-3 rounded-xl font-black text-xs uppercase tracking-widest border-2 transition-all flex items-center gap-2 flex-shrink-0"
+                :style="isLocating ? 'background: rgba(255,255,255,0.05); color: #666; border-color: transparent' : 'border-color: var(--os-indigo); color: var(--os-indigo); background: rgba(99,102,241,0.1)'"
+              >
+                <span>{{ isLocating ? '⏳' : '📍' }}</span>
+                {{ isLocating ? 'Locating...' : 'Auto' }}
+              </button>
+            </div>
+            <div class="text-[10px] text-gray-500 uppercase tracking-widest mb-4">Type a city name or tap Auto to use your device GPS.</div>
+
+            <!-- Live weather preview -->
+            <div v-if="weatherData.temp !== null" class="glass-panel p-4 rounded-xl">
+              <div class="text-[9px] uppercase tracking-widest text-gray-500 mb-3 font-bold">Live Readings — {{ config.customLocation }}</div>
+              <div class="grid grid-cols-3 gap-3 text-center">
+                <div>
+                  <div class="text-lg font-black">{{ weatherData.temp }}°</div>
+                  <div class="text-[9px] text-gray-500 uppercase tracking-widest">Temp</div>
+                </div>
+                <div>
+                  <div class="text-lg font-black text-blue-400">{{ weatherData.humidity }}%</div>
+                  <div class="text-[9px] text-gray-500 uppercase tracking-widest">Humidity</div>
+                </div>
+                <div>
+                  <div class="text-lg font-black text-indigo-400">{{ weatherData.windSpeed }}</div>
+                  <div class="text-[9px] text-gray-500 uppercase tracking-widest">km/h Wind</div>
+                </div>
+              </div>
+            </div>
+            <div v-else class="text-center py-4 text-gray-600 text-xs">No weather data yet. Enter a location or tap Auto.</div>
           </div>
         </div>
 
@@ -361,26 +392,60 @@ const digitalDateString = computed(() => {
   return currentTime.value.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
 })
 
+const isLocating = ref(false)
+
 async function fetchWeatherByCoords(lat, lon) {
   try {
-    const wRes = await fetch(
-      `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
-      `&current=temperature_2m,relative_humidity_2m,wind_speed_10m,precipitation,us_aqi` +
-      `&daily=uv_index_max&timezone=auto&forecast_days=1`
-    )
+    // Forecast API: temp, humidity, wind, precipitation
+    const [wRes, aqRes] = await Promise.all([
+      fetch(
+        `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
+        `&current=temperature_2m,relative_humidity_2m,wind_speed_10m,precipitation` +
+        `&daily=uv_index_max&timezone=auto&forecast_days=1`
+      ),
+      fetch(
+        `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}` +
+        `&current=us_aqi&timezone=auto`
+      )
+    ])
     const wData = await wRes.json()
+    const aqData = await aqRes.json()
     const cur = wData.current
+    const aqCur = aqData.current
     weatherData.value = {
-      temp: cur.temperature_2m ?? null,
-      humidity: cur.relative_humidity_2m ?? null,
-      windSpeed: cur.wind_speed_10m ?? null,
-      precipitation: cur.precipitation ?? null,
-      aqi: cur.us_aqi ?? null,
+      temp: cur?.temperature_2m ?? null,
+      humidity: cur?.relative_humidity_2m ?? null,
+      windSpeed: cur?.wind_speed_10m ?? null,
+      precipitation: cur?.precipitation ?? null,
+      aqi: aqCur?.us_aqi ?? null,
       uv: wData.daily?.uv_index_max?.[0] ?? null
     }
   } catch(err) {
     console.log('[Weather] Fetch error', err)
   }
+}
+
+async function useGPSLocation() {
+  if (!navigator.geolocation) { showAlert('GPS not available'); return }
+  isLocating.value = true
+  navigator.geolocation.getCurrentPosition(async (pos) => {
+    const lat = pos.coords.latitude
+    const lon = pos.coords.longitude
+    // Reverse geocode to get city name
+    try {
+      const r = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`)
+      const d = await r.json()
+      const city = d.address?.city || d.address?.town || d.address?.village || d.address?.county || `${lat.toFixed(2)}, ${lon.toFixed(2)}`
+      config.customLocation = city
+    } catch {
+      config.customLocation = `${lat.toFixed(4)}, ${lon.toFixed(4)}`
+    }
+    await fetchWeatherByCoords(lat, lon)
+    isLocating.value = false
+  }, () => {
+    showAlert('GPS permission denied')
+    isLocating.value = false
+  })
 }
 
 let weatherTimer = null
@@ -727,34 +792,31 @@ onMounted(() => {
   initVoiceEngine()
 
   
-  // Auto-fetch weather from GPS on startup
-  document.fonts.ready.then(() => {
-    navigator.geolocation.getCurrentPosition(async (pos) => {
+  // Auto-load weather: GPS first, else restore saved location
+  navigator.geolocation.getCurrentPosition(
+    async (pos) => {
       const lat = pos.coords.latitude
       const lon = pos.coords.longitude
-      const latStr = lat.toFixed(4)
-      const lonStr = lon.toFixed(4)
-
-      if (!config.location) config.location = {}
-      config.location.name = `${latStr}, ${lonStr}`
-
-      // Fetch real weather immediately using GPS coords
       await fetchWeatherByCoords(lat, lon)
-
-      // If user hasn't typed a custom location, set GPS as display label
-      if (!config.customLocation) {
-        config.customLocation = `${latStr}, ${lonStr}`
+      // Set display name via reverse geocode
+      try {
+        const r = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`)
+        const d = await r.json()
+        const city = d.address?.city || d.address?.town || d.address?.village || d.address?.county || `${lat.toFixed(2)}, ${lon.toFixed(2)}`
+        if (!config.customLocation) config.customLocation = city
+      } catch {
+        if (!config.customLocation) config.customLocation = `${lat.toFixed(4)}, ${lon.toFixed(4)}`
       }
-    }, () => {
-      // GPS denied — if customLocation is set, the watch() will fetch it
+    },
+    async () => {
+      // GPS denied — use saved location if available
       if (config.customLocation) {
-        // Trigger re-fetch manually for saved location
         const saved = config.customLocation
         config.customLocation = ''
-        setTimeout(() => { config.customLocation = saved }, 100)
+        setTimeout(() => { config.customLocation = saved }, 50)
       }
-    })
-  })
+    }
+  )
 })
 
 onUnmounted(() => {
