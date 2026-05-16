@@ -1,0 +1,17 @@
+{
+  "name": "smart-dashboard-os",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Enterprise-grade Smart Dashboard",
+  "scripts": {
+    "install:backend": "cd backend-proxy && npm install",
+    "install:frontend": "cd frontend-engine && npm install",
+    "prestart": "npm run install:backend && npm run install:frontend",
+    "start": "concurrently \"npm run start:backend\" \"npm run start:frontend\"",
+    "start:backend": "cd backend-proxy && npm start",
+    "start:frontend": "cd frontend-engine && npm run dev"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

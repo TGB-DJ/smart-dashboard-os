@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Dashboard OS Framework v1.0</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@100;400;900&family=JetBrains+Mono:wght@100;400&family=Bebas+Neue&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --os-bg: #060814;
+            --os-card: #0f172a;
+            --os-accent: #6366f1; /* Indigo */
+            --os-success: #10b981; /* Emerald */
+            --os-warning: #f59e0b; /* Amber */
+            --easing-lcd: cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        body {
+            background-color: var(--os-bg);
+            color: #f8fafc;
+            overflow: hidden;
+            overscroll-behavior: none;
+            touch-action: none;
+            font-family: 'Outfit', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* LCD-SAFE Layout Engine */
+        .os-viewport {
+            display: flex;
+            width: 100vw;
+            height: 100dvh;
+            overflow-x: auto;
+            scroll-snap-type: x mandatory;
+            scroll-behavior: smooth;
+            scrollbar-width: none;
+            will-change: transform;
+        }
+        .os-viewport::-webkit-scrollbar { display: none; }
+
+        .os-vertical-stack {
+            display: flex;
+            flex-direction: column;
+            width: 100vw;
+            height: 100dvh;
+            overflow-y: auto;
+            scroll-snap-type: y mandatory;
+            scroll-behavior: smooth;
+            flex: none;
+        }
+
+        .os-page {
+            flex: none;
+            width: 100vw;
+            height: 100dvh;
+            scroll-snap-align: start;
+            position: relative;
+            overflow: hidden;
+            background: var(--os-bg);
+        }
+
+        /* Component: Glassmorphism */
+        .os-glass {
+            background: rgba(15, 23, 42, 0.4);
+            backdrop-filter: blur(24px) saturate(160%);
+            -webkit-backdrop-filter: blur(24px) saturate(160%);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            transition: all 0.4s var(--easing-lcd);
+        }
+
+        /* Typography Modules */
+        .font-geometric { font-family: 'Outfit', sans-serif; font-weight: 900; letter-spacing: -0.05em; }
+        .font-segmented { font-family: 'Bebas Neue', cursive; letter-spacing: 0.1em; }
+        .font-cyber { font-family: 'JetBrains Mono', monospace; font-weight: 100; color: var(--os-accent); }
+
+        /* Automation Cluster Animations */
+        .os-toggle-active {
+            border-color: var(--os-accent);
+            box-shadow: 0 0 40px rgba(99, 102, 241, 0.2);
+            background: rgba(99, 102, 241, 0.1);
+        }
+
+        /* Audio Wave Visualization */
+        .audio-wave {
+            display: flex;
+            align-items: flex-end;
+            gap: 3px;
+            height: 40px;
+            opacity: 0;
+            transition: opacity 0.5s var(--easing-lcd);
+        }
+        .audio-wave.active { opacity: 1; }
+        .wave-bar {
+            width: 3px;
+            background: var(--os-accent);
+            border-radius: 2px;
+            animation: wave-peak 1.2s infinite ease-in-out;
+        }
+
+        @keyframes wave-peak {
+            0%, 100% { height: 10%; }
+            50% { height: 100%; }
+        }
+
+    </style>
+</head>
+<body>
+
+    <!-- OS LAYER: GLOBAL ALERTS -->
+    <div id="os-pill" class="fixed top-8 left-1/2 -translate-x-1/2 px-6 py-2 rounded-full glass border border-white/5 z-[9999] transform scale-0 opacity-0 transition-all duration-500 flex items-center gap-3">
+        <div class="w-2 h-2 rounded-full bg-indigo-500 shadow-[0_0_10px_#6366f1]"></div>
+        <span id="os-pill-text" class="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-200">OS Syncing...</span>
+    </div>
+
+    <div class="os-viewport" id="app-root">
+        <!-- FRAMEWORK COMPONENTS WILL INJECT HERE -->
+    </div>
+
+    <script>
+        /**
+         * DASHBOARD OS FRAMEWORK v1.0
+         * Lead Architect: Antigravity AI
+         * 
+         * DESIGN PHILOSOPHY:
+         * 1. CONFIG-DRIVEN: UI state is derived from the AppState object.
+         * 2. LCD-OPTIMIZED: Transitions use specific curves to mask PLS LCD latency.
+         * 3. DECOUPLED: Logic, Layout, and Hardware are separated.
+         */
+
+        const AppState = {
+            config: {
+                theme: 'geometric', // geometric | segmented | cyber
+                brightness: 100,
+                location: { name: 'Acquiring...', lat: 0, lon: 0 },
+                weather: { temp: '--', aqi: '--', uv: '--' }
+            },
+            automation: [
+                { id: 'lights_main', name: 'Main Gallery', type: 'toggle', state: false, icon: '🏠' },
+                { id: 'climate_fan', name: 'Air Exchange', type: 'toggle', state: false, icon: '🌀' }
+            ],
+            hardware: {
+                battery: 0,
+                temp: 0,
+                storage: '84%',
+                ping: '12ms'
+            }
+        };
+
+        const OS = {
+            init() {
+                this.render();
+                this.startEngines();
+                this.bindEvents();
+            },
+
+            render() {
+                const root = document.getElementById('app-root');
+                root.innerHTML = `
+                    <!-- PAGE 1: CORE AMBIENT -->
+                    <div class="os-vertical-stack">
+                        <div class="os-page flex flex-col items-center justify-center" id="page-clock">
+                            <div class="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-50"></div>
+                            <div id="os-clock" class="text-[14rem] transition-all duration-1000 font-${AppState.config.theme}">00:00:00</div>
+                            <div id="os-date" class="text-xl text-gray-500 uppercase tracking-[1em] mt-2">-- -- --</div>
+                            <div class="absolute bottom-10 animate-pulse text-[10px] text-gray-700 tracking-widest">DRAG UP FOR INTEL</div>
+                        </div>
+                        <div class="os-page p-16 flex flex-col justify-center">
+                            <h2 class="text-6xl font-black mb-12 text-white/5 italic">ENVIRONMENT</h2>
+                            <div class="grid grid-cols-2 gap-10">
+                                ${this.comp_metric('GPS', AppState.config.location.name, 'indigo')}
+                                ${this.comp_metric('AQI Index', AppState.config.weather.aqi, 'emerald')}
+                                ${this.comp_metric('UV Exposure', AppState.config.weather.uv, 'amber')}
+                                ${this.comp_metric('Temp', AppState.config.weather.temp + '°', 'indigo')}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- PAGE 2: AUTOMATION CLUSTER -->
+                    <div class="os-page p-16 flex flex-col">
+                        <h1 class="text-6xl font-black mb-16 text-white/10 italic">AUTOMATION <span class="text-indigo-500 opacity-100">CLUSTER</span></h1>
+                        <div class="grid grid-cols-2 gap-10" id="automation-grid">
+                            ${AppState.automation.map(device => this.comp_device(device)).join('')}
+                        </div>
+                        <div class="mt-auto flex flex-col items-center pb-12">
+                            <div class="audio-wave mb-6" id="os-mic-wave">
+                                ${Array(8).fill('<div class="wave-bar"></div>').join('')}
+                            </div>
+                            <button id="os-mic-btn" class="w-24 h-24 os-glass rounded-full flex items-center justify-center active:scale-95 transition-transform">
+                                <div class="w-12 h-12 bg-indigo-500 rounded-full shadow-[0_0_20px_#6366f1]"></div>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- PAGE 3: SYSTEM DIAGNOSTICS -->
+                    <div class="os-vertical-stack">
+                        <div class="os-page p-16">
+                            <h1 class="text-6xl font-black mb-16 text-white/10 italic">SYSTEM <span class="text-emerald-500 opacity-100">METRICS</span></h1>
+                            <div class="grid grid-cols-2 gap-10">
+                                ${this.comp_status('Battery', AppState.hardware.battery + '%', 'emerald')}
+                                ${this.comp_status('Thermal', AppState.hardware.temp + '°', 'amber')}
+                                ${this.comp_status('Storage', AppState.hardware.storage, 'indigo')}
+                                ${this.comp_status('Ping', AppState.hardware.ping, 'indigo')}
+                            </div>
+                        </div>
+                        <div class="os-page p-24 flex flex-col justify-center">
+                            <div class="os-glass p-16 rounded-[60px] max-w-2xl mx-auto w-full">
+                                <h3 class="text-2xl font-black mb-12 tracking-widest uppercase">Kiosk Control</h3>
+                                <div class="space-y-12">
+                                    <div>
+                                        <div class="flex justify-between text-[10px] uppercase text-gray-500 mb-4"><span>Brightness</span><span id="bright-txt">100%</span></div>
+                                        <input type="range" class="w-full" value="100" id="os-bright-slider">
+                                    </div>
+                                    <button class="w-full py-6 rounded-2xl os-glass font-black text-red-500 tracking-widest uppercase" onclick="location.reload()">Reboot OS</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            },
+
+            // Framework Components
+            comp_metric: (label, val, color) => `
+                <div class="os-glass p-12 rounded-[40px]">
+                    <div class="text-[10px] uppercase text-gray-500 tracking-widest mb-4">${label}</div>
+                    <div class="text-5xl font-black text-${color}-400">${val}</div>
+                </div>`,
+            
+            comp_status: (label, val, color) => `
+                <div class="os-glass p-10 rounded-[40px] flex items-center gap-8">
+                    <div class="w-20 h-20 rounded-full border-4 border-${color}-500/30 flex items-center justify-center font-black text-xl">${val}</div>
+                    <div class="text-xs uppercase text-gray-500 tracking-widest">${label}</div>
+                </div>`,
+
+            comp_device: (dev) => `
+                <div class="os-glass p-12 rounded-[50px] flex flex-col justify-between cursor-pointer ${dev.state ? 'os-toggle-active' : ''}" 
+                     onclick="OS.toggleDevice('${dev.id}')" id="dev-${dev.id}">
+                    <div class="text-4xl mb-6">${dev.icon}</div>
+                    <div>
+                        <div class="text-3xl font-black">${dev.name}</div>
+                        <div class="text-[10px] uppercase tracking-widest mt-2 text-gray-500">${dev.state ? 'Operational' : 'Standby'}</div>
+                    </div>
+                </div>`,
+
+            // Engines
+            startEngines() {
+                // Precision Clock (Performance.now correction)
+                const updateClock = () => {
+                    const now = new Date();
+                    document.getElementById('os-clock').textContent = now.toLocaleTimeString('en-US', { hour12: false });
+                    document.getElementById('os-date').textContent = now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+                    requestAnimationFrame(updateClock);
+                };
+                requestAnimationFrame(updateClock);
+
+                // GPS Engine
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(p => {
+                        AppState.config.location.name = "SYNCED";
+                        this.render(); // Re-render with new data
+                    });
+                }
+            },
+
+            bindEvents() {
+                // Long Press Theme Switcher
+                let timer;
+                const clock = document.getElementById('page-clock');
+                clock.addEventListener('mousedown', () => {
+                    timer = setTimeout(() => {
+                        const themes = ['geometric', 'segmented', 'cyber'];
+                        const next = themes[(themes.indexOf(AppState.config.theme) + 1) % themes.length];
+                        AppState.config.theme = next;
+                        this.render();
+                        this.notify("Theme: " + next.toUpperCase());
+                    }, 1000);
+                });
+                clock.addEventListener('mouseup', () => clearTimeout(timer));
+
+                // Brightness Slider
+                const slider = document.getElementById('os-bright-slider');
+                if(slider) {
+                    slider.addEventListener('input', (e) => {
+                        const v = e.target.value;
+                        document.getElementById('bright-txt').textContent = v + "%";
+                        if(window.fully) window.fully.setScreenBrightness(v);
+                    });
+                }
+
+                // Keyboard Support
+                window.addEventListener('keydown', (e) => {
+                    const root = document.getElementById('app-root');
+                    if (e.key === 'ArrowRight') root.scrollBy({ left: window.innerWidth, behavior: 'smooth' });
+                    if (e.key === 'ArrowLeft') root.scrollBy({ left: -window.innerWidth, behavior: 'smooth' });
+                });
+            },
+
+            toggleDevice(id) {
+                const dev = AppState.automation.find(d => d.id === id);
+                dev.state = !dev.state;
+                this.render();
+                this.speak(dev.name + (dev.state ? " enabled" : " disabled"));
+            },
+
+            notify(text) {
+                const pill = document.getElementById('os-pill');
+                document.getElementById('os-pill-text').textContent = text;
+                pill.style.scale = "1"; pill.style.opacity = "1";
+                setTimeout(() => { pill.style.scale = "0"; pill.style.opacity = "0"; }, 3000);
+            },
+
+            speak(text) {
+                const u = new SpeechSynthesisUtterance(text);
+                u.rate = 1.1; u.pitch = 1.2;
+                window.speechSynthesis.speak(u);
+            }
+        };
+
+        // Boot OS
+        OS.init();
+
+    </script>
+</body>
+</html>

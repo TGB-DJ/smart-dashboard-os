@@ -1,0 +1,37 @@
+{
+  "system": {
+    "fps_lock": 60,
+    "viewport": {
+      "width": 1560,
+      "height": 720
+    },
+    "lcd_optimization": {
+      "easing": "cubic-bezier(0.4, 0, 0.2, 1)",
+      "blur_radius": "16px",
+      "prevent_ghosting": true
+    }
+  },
+  "theme": {
+    "base": "#02040a",
+    "cards": "#0d1117",
+    "indicators": {
+      "indigo": "#6366f1",
+      "emerald": "#10b981",
+      "amber": "#f59e0b"
+    },
+    "border_radius": "24px"
+  },
+  "api": {
+    "weather": {
+      "endpoint": "mock://weather-api",
+      "polling_interval_ms": 600000
+    },
+    "calendar": {
+      "endpoint": "mock://calendar-oauth"
+    }
+  },
+  "automation": [
+    { "id": "light_main", "name": "Main Gallery", "type": "toggle", "icon": "💡", "state": false },
+    { "id": "fan_climate", "name": "Air Exchange", "type": "slider", "icon": "🌀", "state": 0, "min": 0, "max": 100 }
+  ]
+}
