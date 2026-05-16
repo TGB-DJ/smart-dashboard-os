@@ -30,15 +30,15 @@
           <!-- WebGL/Canvas Fallback for Time -->
           <canvas ref="clockCanvas" class="absolute inset-0 pointer-events-none z-0" width="1560" height="720"></canvas>
           
-          <!-- HTML Overlay for Digital Clock (Stable tabular layout) -->
+          <!-- HTML Overlay for Digital Clock (Grid layout for absolute stability) -->
           <div v-if="config.clockEngine === 'DIGITAL'" class="absolute z-10 flex flex-col items-center justify-center font-black pointer-events-none transition-lcd select-none" :style="{ fontFamily: config.typography, color: accentColor, opacity: isChangingClock ? 0 : 1 }">
-             <div class="text-[180px] leading-none whitespace-nowrap flex items-baseline" style="font-variant-numeric: tabular-nums;">
-               <span class="inline-block w-[1ch] text-center">{{ digitalTimeParts.hh }}</span>
-               <span class="opacity-60">:</span>
-               <span class="inline-block w-[1ch] text-center">{{ digitalTimeParts.mm }}</span>
+             <div class="text-[180px] leading-none whitespace-nowrap grid grid-flow-col items-baseline" :class="config.showSeconds ? 'gap-0' : 'gap-0'">
+               <span class="w-[1ch] text-center">{{ digitalTimeParts.hh }}</span>
+               <span class="px-2 opacity-60">:</span>
+               <span class="w-[1ch] text-center">{{ digitalTimeParts.mm }}</span>
                <template v-if="config.showSeconds">
-                 <span class="opacity-60 text-[0.8em]">:</span>
-                 <span class="inline-block w-[1ch] text-center text-[0.8em]">{{ digitalTimeParts.ss }}</span>
+                 <span class="px-2 opacity-60 text-[0.8em]">:</span>
+                 <span class="w-[1ch] text-center text-[0.8em]">{{ digitalTimeParts.ss }}</span>
                </template>
              </div>
 
@@ -444,6 +444,22 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, computed, watch, reactive } from 'vue'
+import { initializeApp } from "firebase/app";
+import { getFirestore, doc, onSnapshot, setDoc } from "firebase/firestore";
+
+// --- FIREBASE SYNC CONFIG ---
+const firebaseConfig = {
+  apiKey: "AIzaSyB-placeholder-replace-me", 
+  authDomain: "i-matrix-496521-a1.firebaseapp.com",
+  projectId: "i-matrix-496521-a1",
+  storageBucket: "i-matrix-496521-a1.appspot.com",
+  messagingSenderId: "110930829234",
+  appId: "1:110930829234:web:f1e7a1b3c4d5e6f7g8h9i0"
+};
+
+const fbApp = initializeApp(firebaseConfig);
+const db = getFirestore(fbApp);
+const HOME_DOC = "settings/home_config";
 
 // --- GLOBAL STATE ---
 const ENV_METRIC_DEFAULT = [
@@ -712,7 +728,17 @@ const automation = ref(initialAutomation)
 
 watch(automation, (newVal) => {
   localStorage.setItem('osAutomation', JSON.stringify(newVal))
+  // Push to Cloud (Debounced or conditional)
+  syncToCloud(newVal)
 }, { deep: true })
+
+async function syncToCloud(data) {
+  try {
+    await setDoc(doc(db, "settings", "home_config"), { automation: data }, { merge: true })
+  } catch (e) {
+    console.log('[Cloud] Sync failed', e)
+  }
+}
 const telemetry = ref({ battery: 100, temp: 35, storage: '128GB', ping: '10ms', weather: {} })
 const alertMessage = ref('')
 const persistentAlert = ref('')
@@ -720,6 +746,7 @@ const isListening = ref(false)
 const clockStack = ref(null)
 const viewport = ref(null)
 const isChangingClock = ref(false)
+const drawerOpenTime = ref(0)
 const showCalendarDetails = ref(false)
 const calendarEvents = ref([])
 
@@ -755,6 +782,11 @@ const changeClockSetting = (key, value) => {
       isChangingClock.value = false
     }, 500)
   }
+}
+
+function openEditMode() {
+  isEditMode.value = true
+  drawerOpenTime.value = Date.now()
 }
 
 // --- DYNAMIC GRID AUTOSIZE ---
@@ -894,11 +926,11 @@ async function fetchCalendar() {
 
 // --- LONG PRESS TO EDIT ---
 let globalHoldTimer = null
-function startGlobalHold(tabId = 'clock') {
-  if(isEditMode.value) return
+function startGlobalHold(target) {
   globalHoldTimer = setTimeout(() => {
-    isEditMode.value = tabId
-  }, 800) // 800ms hold
+    openEditMode()
+    showAlert(`Customizing ${target.toUpperCase()}...`)
+  }, 1000)
 }
 function endGlobalHold() {
   clearTimeout(globalHoldTimer)
@@ -993,7 +1025,8 @@ function showAlert(msg) {
 
 function handleGlobalClick(e) {
   // If edit mode is on and we click outside the drawer, close it
-  if (isEditMode.value) {
+  // We add a 300ms buffer to prevent the 'tap and hold' release from closing it immediately
+  if (isEditMode.value && (Date.now() - drawerOpenTime.value > 500)) {
     const drawer = document.querySelector('.edit-drawer')
     if (drawer && !drawer.contains(e.target)) {
       isEditMode.value = false
@@ -1008,6 +1041,14 @@ onMounted(() => {
   renderClock()
   connectWebSocket()
   initVoiceEngine()
+
+  // --- CLOUD SYNC LISTEN ---
+  onSnapshot(doc(db, "settings", "home_config"), (doc) => {
+    const data = doc.data()
+    if (data && data.automation) {
+      automation.value = data.automation
+    }
+  })
 
   // Sync real battery if possible
   if (navigator.getBattery) {
