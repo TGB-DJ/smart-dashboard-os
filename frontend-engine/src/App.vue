@@ -33,23 +33,6 @@
           <!-- Smart Greeting -->
           <div class="absolute top-16 px-8 py-3 rounded-full glass-panel text-sm font-bold uppercase tracking-widest text-white/60 transition-all opacity-0 group-hover:opacity-100">{{ currentGreeting }}</div>
 
-          <!-- Google Calendar Sync Module -->
-          <div @click="showCalendarDetails = true" class="absolute bottom-32 left-1/2 -translate-x-1/2 flex items-center gap-6 glass-panel px-8 py-4 rounded-[2rem] w-[700px] hover:scale-105 transition-transform duration-500 transition-lcd z-20 cursor-pointer border-l-4" :style="{ borderLeftColor: 'var(--os-indigo)' }">
-            <div class="w-16 h-16 rounded-2xl flex flex-col items-center justify-center border-2" :style="{ borderColor: 'var(--os-indigo)', color: 'var(--os-indigo)', backgroundColor: 'var(--os-indigo)' + '10' }">
-              <div class="text-[10px] font-black uppercase tracking-widest">MAY</div>
-              <div class="text-2xl font-black">17</div>
-            </div>
-            <div class="flex-1 text-left">
-              <div class="text-[10px] uppercase tracking-[0.2em] text-gray-400 font-bold mb-1">Google Calendar Sync</div>
-              <div class="text-xl font-bold truncate">Enterprise Architecture Review</div>
-              <div class="text-sm text-white/50">10:00 AM - 11:30 AM • Video Call</div>
-            </div>
-            <div class="text-right">
-              <div class="text-xs font-bold text-white/40 mb-1">In 3 Hrs</div>
-              <div class="w-3 h-3 rounded-full animate-pulse ml-auto" :style="{ backgroundColor: 'var(--os-indigo)' }"></div>
-            </div>
-          </div>
-
           <div class="absolute bottom-8 animate-bounce opacity-30 text-[10px] tracking-[0.5em] uppercase pointer-events-none">Swipe Down For Environment</div>
         </div>
 
@@ -103,6 +86,24 @@
             </div>
 
           </div>
+
+          <!-- Google Calendar Sync Module (Moved from Clock) -->
+          <div @click="showCalendarDetails = true" class="mt-12 mx-auto flex items-center gap-6 glass-panel px-8 py-4 rounded-[2rem] w-[700px] hover:scale-[1.02] transition-transform duration-500 transition-lcd z-20 cursor-pointer border-l-4" :style="{ borderLeftColor: 'var(--os-indigo)' }">
+            <div class="w-16 h-16 rounded-2xl flex flex-col items-center justify-center border-2" :style="{ borderColor: 'var(--os-indigo)', color: 'var(--os-indigo)', backgroundColor: 'var(--os-indigo)' + '10' }">
+              <div class="text-[10px] font-black uppercase tracking-widest">{{ calendarEvents.length > 0 ? new Date(calendarEvents[0].start.dateTime || calendarEvents[0].start.date).toLocaleString('default', { month: 'short' }) : 'CAL' }}</div>
+              <div class="text-2xl font-black">{{ calendarEvents.length > 0 ? new Date(calendarEvents[0].start.dateTime || calendarEvents[0].start.date).getDate() : '--' }}</div>
+            </div>
+            <div class="flex-1 text-left">
+              <div class="text-[10px] uppercase tracking-[0.2em] text-gray-400 font-bold mb-1">Google Calendar Sync</div>
+              <div class="text-xl font-bold truncate">{{ calendarEvents.length > 0 ? calendarEvents[0].summary : 'No Upcoming Events' }}</div>
+              <div class="text-sm text-white/50" v-if="calendarEvents.length > 0">{{ new Date(calendarEvents[0].start.dateTime || calendarEvents[0].start.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) }}</div>
+            </div>
+            <div class="text-right" v-if="calendarEvents.length > 0">
+              <div class="text-xs font-bold text-white/40 mb-1">Next</div>
+              <div class="w-3 h-3 rounded-full animate-pulse ml-auto" :style="{ backgroundColor: 'var(--os-indigo)' }"></div>
+            </div>
+          </div>
+
         </div>
       </div>
 
@@ -149,40 +150,21 @@
           <h1 class="text-6xl font-black mb-12 text-white/40 italic uppercase tracking-tighter">Device <span class="opacity-100" style="color: var(--os-indigo)">Health</span></h1>
           <div class="grid grid-cols-3 gap-6">
             
-            <!-- Battery -->
-            <div class="glass-panel p-8 rounded-[32px] flex items-center gap-6">
-              <div class="w-20 h-20 rounded-full border-[4px] flex items-center justify-center text-2xl font-black" :class="telemetry.battery < 25 ? 'border-red-500 text-red-500 shadow-[0_0_15px_rgba(239,68,68,0.5)]' : 'border-emerald-500/40 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.2)]'">{{ telemetry.battery }}%</div>
-              <div><div class="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-1">Power Level</div><div class="text-xl font-bold">{{ telemetry.battery < 25 ? 'Critical' : 'Optimal' }}</div></div>
-            </div>
-            
-            <!-- Temp -->
-            <div class="glass-panel p-8 rounded-[32px] flex items-center gap-6">
-              <div class="w-20 h-20 rounded-full border-[4px] flex items-center justify-center text-2xl font-black" :class="telemetry.temp > 45 ? 'border-red-500 text-red-500 shadow-[0_0_15px_rgba(239,68,68,0.5)]' : 'border-amber-500/40 text-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.2)]'">{{ telemetry.temp }}°</div>
-              <div><div class="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-1">Core Temp</div><div class="text-xl font-bold">{{ telemetry.temp > 45 ? 'Warning' : 'Stable' }}</div></div>
-            </div>
-
-            <!-- CPU -->
-            <div class="glass-panel p-8 rounded-[32px] flex items-center gap-6">
-              <div class="w-20 h-20 rounded-full border-[4px] flex items-center justify-center text-2xl font-black" :class="telemetry.cpu > 80 ? 'border-red-500 text-red-500' : 'border-cyan-500/40 text-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.2)]'">{{ telemetry.cpu || 14 }}%</div>
-              <div><div class="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-1">CPU Load</div><div class="text-xl font-bold">Processing</div></div>
-            </div>
-
-            <!-- Storage -->
-            <div class="glass-panel p-8 rounded-[32px] flex items-center gap-6">
-               <div class="text-4xl font-black" style="color: var(--os-indigo)">{{ telemetry.storage }}</div>
-               <div><div class="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-1">Internal Storage</div><div class="text-xl font-bold">Available</div></div>
-            </div>
-
-            <!-- RAM -->
-            <div class="glass-panel p-8 rounded-[32px] flex items-center gap-6">
-               <div class="text-4xl font-black flex items-baseline" style="color: var(--os-indigo)">{{ telemetry.ram || '1.4' }}<span class="text-xl ml-1 text-white/40">GB</span></div>
-               <div><div class="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-1">Memory Usage</div><div class="text-xl font-bold">Allocated</div></div>
-            </div>
-            
-            <!-- Ping -->
-            <div class="glass-panel p-8 rounded-[32px] flex items-center gap-6">
-               <div class="text-4xl font-black" style="color: var(--os-indigo)">{{ telemetry.ping }}</div>
-               <div><div class="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-1">Network Ping</div><div class="text-xl font-bold">Connected</div></div>
+            <div v-for="mId in config.visibleMetrics" :key="mId" class="glass-panel p-8 rounded-[32px] flex items-center gap-6 group hover:scale-[1.02] transition-transform relative overflow-hidden">
+              <div class="absolute inset-0 bg-gradient-to-r from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+              
+              <div v-if="getMetricDef(mId).iconColor === 'indigo' || getMetricDef(mId).iconColor === 'white'" class="text-4xl font-black flex items-baseline z-10" :style="{ color: 'var(--os-indigo)' }">
+                {{ telemetry[mId] || 0 }}<span class="text-xl ml-1 text-white/40">{{ getMetricDef(mId).unit }}</span>
+              </div>
+              
+              <div v-else class="w-20 h-20 rounded-full border-[4px] flex items-center justify-center text-2xl font-black z-10" :class="`border-${getMetricDef(mId).iconColor}-500/40 text-${getMetricDef(mId).iconColor}-400 shadow-[0_0_15px_rgba(0,0,0,0.5)] shadow-${getMetricDef(mId).iconColor}-500/20`">
+                {{ telemetry[mId] || 0 }}<span class="text-xs ml-1 opacity-70">{{ getMetricDef(mId).unit }}</span>
+              </div>
+              
+              <div class="z-10">
+                <div class="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-1">{{ getMetricDef(mId).label }}</div>
+                <div class="text-xl font-bold">{{ getMetricDef(mId).suffix }}</div>
+              </div>
             </div>
 
           </div>
@@ -215,6 +197,23 @@
           <h3 class="text-xs text-gray-400 font-bold uppercase tracking-widest mb-4">Dashboard Location</h3>
           <input type="text" v-model="config.customLocation" placeholder="Enter City (e.g. New York, London)" class="w-full bg-white/5 border-2 border-white/10 rounded-xl px-4 py-3 font-bold text-white focus:outline-none focus:border-[var(--os-indigo)] transition-colors mb-2" />
           <div class="text-[10px] text-gray-500 uppercase tracking-widest">Controls the Environment Intel weather data.</div>
+        </div>
+
+        <!-- Telemetry Configuration -->
+        <div>
+          <h3 class="text-xs text-gray-400 font-bold uppercase tracking-widest mb-4">Visible Metrics ({{ config.visibleMetrics.length }}/10)</h3>
+          <div class="grid grid-cols-2 gap-2">
+            <button 
+              v-for="m in allMetricsList" 
+              :key="m.id" 
+              @click="toggleMetric(m.id)" 
+              class="px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all text-left truncate"
+              :style="config.visibleMetrics.includes(m.id) ? { backgroundColor: 'var(--os-indigo)', color: '#fff' } : {}"
+              :class="config.visibleMetrics.includes(m.id) ? 'shadow-lg' : 'bg-white/5 border border-white/10 text-gray-400 hover:text-white'"
+            >
+              {{ m.label }}
+            </button>
+          </div>
         </div>
 
         <!-- Clock Type Picker -->
@@ -323,8 +322,34 @@ const config = reactive({
   showSeconds: true,
   accentColor: '#6366f1',
   location: null,
-  customLocation: ''
+  customLocation: '',
+  visibleMetrics: ['battery', 'temp', 'cpu', 'storage', 'ram', 'ping']
 })
+
+const allMetricsList = [
+  { id: 'battery', label: 'Power Level', unit: '%', suffix: 'Optimal', iconColor: 'emerald' },
+  { id: 'temp', label: 'Core Temp', unit: '°', suffix: 'Stable', iconColor: 'amber' },
+  { id: 'cpu', label: 'CPU Load', unit: '%', suffix: 'Processing', iconColor: 'cyan' },
+  { id: 'ram', label: 'Memory', unit: 'GB', suffix: 'Allocated', iconColor: 'indigo' },
+  { id: 'storage', label: 'Storage', unit: '', suffix: 'Available', iconColor: 'indigo' },
+  { id: 'ping', label: 'Ping', unit: '', suffix: 'Connected', iconColor: 'amber' },
+  { id: 'gpu', label: 'GPU Load', unit: '%', suffix: 'Rendering', iconColor: 'rose' },
+  { id: 'diskIO', label: 'Disk I/O', unit: ' MB/s', suffix: 'Reading', iconColor: 'emerald' },
+  { id: 'bandwidth', label: 'Bandwidth', unit: ' Mbps', suffix: 'Streaming', iconColor: 'cyan' },
+  { id: 'uptime', label: 'Uptime', unit: ' Hr', suffix: 'Online', iconColor: 'indigo' }
+]
+
+function getMetricDef(id) {
+  return allMetricsList.find(m => m.id === id) || allMetricsList[0]
+}
+
+function toggleMetric(id) {
+  if (config.visibleMetrics.includes(id)) {
+    config.visibleMetrics = config.visibleMetrics.filter(m => m !== id)
+  } else {
+    config.visibleMetrics.push(id)
+  }
+}
 
 const currentGreeting = ref('Systems nominal.')
 const greetingsLib = [

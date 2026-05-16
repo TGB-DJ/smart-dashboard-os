@@ -31,7 +31,7 @@ try {
 // In-Memory State Cache
 const STATE_CACHE = {
   automation: config.automation || [],
-  telemetry: { battery: 100, temp: 35, storage: '85%', ping: '12ms' },
+  telemetry: { battery: 100, temp: 35, storage: '128GB', ping: '12ms', cpu: 14, ram: 1.4, gpu: 22, diskIO: 45, bandwidth: 120, uptime: 24 },
   weather: { temp: 72, aqi: 12, uv: 3.5 }
 };
 
@@ -103,6 +103,9 @@ setInterval(() => {
   STATE_CACHE.telemetry.ping = Math.floor(10 + Math.random() * 15) + 'ms';
   STATE_CACHE.telemetry.cpu = Math.floor(12 + Math.random() * 15); // 12-27%
   STATE_CACHE.telemetry.ram = (1.4 + Math.random() * 0.2).toFixed(2); // 1.4-1.6GB
+  STATE_CACHE.telemetry.gpu = Math.floor(20 + Math.random() * 10); // GPU
+  STATE_CACHE.telemetry.diskIO = Math.floor(30 + Math.random() * 20); // Disk IO MB/s
+  STATE_CACHE.telemetry.bandwidth = Math.floor(100 + Math.random() * 50); // Mbps
 
   // Simulate battery drain very slowly, occasionally test critical
   if(Math.random() > 0.99) STATE_CACHE.telemetry.battery -= 1;
