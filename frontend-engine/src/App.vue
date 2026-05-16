@@ -45,7 +45,7 @@
 
              <!-- Location name -->
              <div v-if="config.customLocation" class="mt-3 text-sm font-bold tracking-[0.3em] uppercase text-white/30 flex items-center gap-2" style="font-family: 'Inter', sans-serif;">
-               <span class="text-xs opacity-60">📍</span> {{ config.customLocation }}
+               <span class="text-xs opacity-60 animate-pulse">📍</span> {{ config.customLocation }}
              </div>
           </div>
           
@@ -102,7 +102,7 @@
               <!-- Generic metric card -->
               <template v-else>
                 <div class="text-5xl font-black leading-none flex items-start mt-4" :class="metric.color">
-                  {{ weatherData[metric.dataKey] ?? '--' }}<span class="text-2xl mt-1 ml-1 text-white/30 font-light">{{ metric.unit }}</span>
+                  {{ formatMetricValue(weatherData[metric.dataKey], metric.id) }}<span class="text-2xl mt-1 ml-1 text-white/30 font-light">{{ metric.id === 'temp' ? (config.tempUnit === 'F' ? '°F' : '°C') : metric.unit }}</span>
                 </div>
                 <div v-if="metric.sub" class="text-[10px] mt-auto pt-6 font-bold uppercase tracking-widest" :class="metric.color + '/70'">{{ metric.sub }}</div>
               </template>
@@ -173,11 +173,11 @@
               <div class="absolute inset-0 bg-gradient-to-r from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
               
               <div v-if="getMetricDef(mId).iconColor === 'indigo' || getMetricDef(mId).iconColor === 'white'" class="text-4xl font-black flex items-baseline z-10" :style="{ color: 'var(--os-indigo)' }">
-                {{ telemetry[mId] || 0 }}<span class="text-xl ml-1 text-white/40">{{ getMetricDef(mId).unit }}</span>
+                {{ formatMetricValue(telemetry[mId], mId) }}<span class="text-xl ml-1 text-white/40">{{ mId === 'temp' ? (config.tempUnit === 'F' ? '°F' : '°C') : getMetricDef(mId).unit }}</span>
               </div>
               
               <div v-else class="w-20 h-20 rounded-full border-[4px] flex items-center justify-center text-2xl font-black z-10" :class="`border-${getMetricDef(mId).iconColor}-500/40 text-${getMetricDef(mId).iconColor}-400 shadow-[0_0_15px_rgba(0,0,0,0.5)] shadow-${getMetricDef(mId).iconColor}-500/20`">
-                {{ telemetry[mId] || 0 }}<span class="text-xs ml-1 opacity-70">{{ getMetricDef(mId).unit }}</span>
+                {{ formatMetricValue(telemetry[mId], mId) }}<span class="text-xs ml-1 opacity-70">{{ mId === 'temp' ? (config.tempUnit === 'F' ? '°F' : '°C') : getMetricDef(mId).unit }}</span>
               </div>
               
               <div class="z-10">
@@ -276,11 +276,12 @@
             <div class="text-[10px] text-gray-500 uppercase tracking-widest mb-4">Type a city name or tap Auto to use your device GPS.</div>
 
             <!-- Live weather preview -->
-            <div v-if="weatherData.temp !== null" class="glass-panel p-4 rounded-xl">
+            <div v-if="weatherData.temp !== null" class="glass-panel p-4 rounded-xl relative group">
+              <button @click="refreshWeather" class="absolute top-2 right-2 text-[10px] text-gray-500 hover:text-white transition-colors opacity-0 group-hover:opacity-100">↻ Refresh</button>
               <div class="text-[9px] uppercase tracking-widest text-gray-500 mb-3 font-bold">Live Readings — {{ config.customLocation }}</div>
               <div class="grid grid-cols-3 gap-3 text-center">
                 <div>
-                  <div class="text-lg font-black">{{ weatherData.temp }}°</div>
+                  <div class="text-lg font-black">{{ formatMetricValue(weatherData.temp, 'temp') }}°{{ config.tempUnit }}</div>
                   <div class="text-[9px] text-gray-500 uppercase tracking-widest">Temp</div>
                 </div>
                 <div>
@@ -584,6 +585,21 @@ function setDeviceColor(dev, hex) {
   dev.color = hex
 }
 
+async function refreshWeather() {
+  if (!config.customLocation) return
+  try {
+    const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(config.customLocation)}&count=1`)
+    const geoData = await geoRes.json()
+    if (geoData.results && geoData.results.length > 0) {
+      const loc = geoData.results[0]
+      await fetchWeatherByCoords(loc.latitude, loc.longitude)
+      showAlert('Weather Updated')
+    }
+  } catch(err) {
+    showAlert('Refresh Failed')
+  }
+}
+
 let weatherTimer = null
 watch(() => config.customLocation, (newVal) => {
   if(!newVal) return
@@ -625,6 +641,15 @@ function toggleMetric(id) {
   } else {
     config.visibleMetrics.push(id)
   }
+}
+
+function formatMetricValue(val, metricId) {
+  if (val === null || val === undefined) return '--'
+  if (metricId === 'temp') {
+    if (config.tempUnit === 'F') return Math.round(val * 9 / 5 + 32)
+    return Math.round(val * 10) / 10
+  }
+  return val
 }
 
 const currentGreeting = ref('Systems nominal.')
@@ -933,6 +958,16 @@ onMounted(() => {
   renderClock()
   connectWebSocket()
   initVoiceEngine()
+
+  // Sync real battery if possible
+  if (navigator.getBattery) {
+    navigator.getBattery().then(batt => {
+      telemetry.value.battery = Math.round(batt.level * 100)
+      batt.addEventListener('levelchange', () => {
+        telemetry.value.battery = Math.round(batt.level * 100)
+      })
+    })
+  }
 
   
   // Auto-load weather: GPS first, else restore saved location
