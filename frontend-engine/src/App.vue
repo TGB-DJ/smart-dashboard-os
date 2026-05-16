@@ -28,7 +28,13 @@
           @pointerleave="endGlobalHold"
         >
           <!-- WebGL/Canvas Fallback for Time -->
-          <canvas ref="clockCanvas" class="absolute inset-0 pointer-events-none" width="1560" height="720"></canvas>
+          <canvas ref="clockCanvas" class="absolute inset-0 pointer-events-none z-0" width="1560" height="720"></canvas>
+          
+          <!-- HTML Overlay for Digital Clock (Prevents Jitter via tabular-nums) -->
+          <div v-if="config.clockEngine === 'DIGITAL'" class="absolute z-10 flex flex-col items-center justify-center font-black pointer-events-none transition-lcd select-none" :style="{ fontFamily: config.typography, color: accentColor, opacity: isChangingClock ? 0 : 1 }">
+             <div class="text-[180px] leading-none whitespace-nowrap tracking-tighter" style="font-variant-numeric: tabular-nums;">{{ digitalTimeString }}</div>
+             <div class="text-2xl font-bold tracking-[0.5em] uppercase mt-2 text-white/60" style="font-family: 'Inter', sans-serif;">{{ digitalDateString }}</div>
+          </div>
           
           <!-- Smart Greeting -->
           <div class="absolute top-16 px-8 py-3 rounded-full glass-panel text-sm font-bold uppercase tracking-widest text-white/60 transition-all opacity-0 group-hover:opacity-100">{{ currentGreeting }}</div>
@@ -37,78 +43,85 @@
         </div>
 
         <!-- 1.2: Environment Weather Metrics -->
-        <div class="flex-none w-screen h-screen snap-start p-16 flex flex-col justify-center relative">
+        <div class="flex-none w-screen h-screen snap-start p-16 flex flex-col justify-center relative" @pointerdown="startGlobalHold('environment')" @pointerup="endGlobalHold" @pointerleave="endGlobalHold">
           <h2 class="text-5xl font-black mb-12 text-white/40 italic uppercase tracking-tighter">Environment <span class="opacity-100" style="color: var(--os-indigo)">Intel</span></h2>
-          <div class="grid grid-cols-2 gap-8 z-10">
+          <div class="grid grid-cols-4 gap-6 z-10 w-full max-w-7xl mx-auto flex-1 max-h-[75vh]">
             
             <!-- Location Precision -->
-            <div class="glass-panel p-10 rounded-[32px] relative overflow-hidden group">
+            <div class="glass-panel p-8 rounded-[32px] relative overflow-hidden group col-span-2">
               <div class="absolute -right-8 -bottom-12 text-[150px] opacity-[0.03] rotate-12 group-hover:scale-110 transition-transform duration-700">📍</div>
               <div class="text-[10px] uppercase text-gray-400 font-bold tracking-[0.3em] mb-3">Location Precision</div>
-              <div class="text-[2.5rem] font-black tracking-tighter truncate" style="color: var(--os-indigo); font-family: 'JetBrains Mono', monospace;">{{ config.customLocation || config.location?.name || 'AQUIRING...' }}</div>
-              <div class="text-[10px] text-white/40 mt-5 flex items-center gap-2 uppercase tracking-widest font-bold">
+              <div class="text-4xl font-black tracking-tighter truncate mt-4" style="color: var(--os-indigo); font-family: 'JetBrains Mono', monospace;">{{ config.customLocation || config.location?.name || 'AQUIRING...' }}</div>
+              <div class="text-[10px] text-white/40 mt-auto pt-6 flex items-center gap-2 uppercase tracking-widest font-bold">
                 <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div> Live GPS Lock
               </div>
             </div>
 
             <!-- Atmosphere AQI -->
-            <div class="glass-panel p-10 rounded-[32px] relative overflow-hidden group">
-              <div class="absolute -right-8 -bottom-12 text-[150px] opacity-[0.03] -rotate-12 group-hover:scale-110 transition-transform duration-700">💨</div>
+            <div class="glass-panel p-8 rounded-[32px] relative overflow-hidden group">
+              <div class="absolute -right-8 -bottom-12 text-[100px] opacity-[0.03] -rotate-12 group-hover:scale-110 transition-transform duration-700">💨</div>
               <div class="text-[10px] uppercase text-gray-400 font-bold tracking-[0.3em] mb-3">Atmosphere AQI</div>
-              <div class="flex items-end gap-3">
-                <div class="text-6xl font-black text-emerald-400 leading-none">{{ telemetry.weather?.aqi || '42' }}</div>
-                <div class="text-sm text-emerald-400/60 font-bold mb-1 tracking-widest uppercase">PM2.5</div>
+              <div class="flex items-end gap-2 mt-4">
+                <div class="text-5xl font-black text-emerald-400 leading-none">{{ weatherData.aqi || '--' }}</div>
+                <div class="text-xs text-emerald-400/60 font-bold mb-1 tracking-widest uppercase">PM2.5</div>
               </div>
-              <div class="mt-6 h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+              <div class="mt-auto pt-6 h-1 w-full bg-white/5 rounded-full overflow-hidden">
                 <div class="h-full bg-emerald-400 w-[30%] shadow-[0_0_10px_#34d399]"></div>
               </div>
             </div>
 
             <!-- UV Index -->
-            <div class="glass-panel p-10 rounded-[32px] relative overflow-hidden group">
-              <div class="absolute -right-8 -bottom-12 text-[150px] opacity-[0.03] rotate-45 group-hover:scale-110 transition-transform duration-700">☀️</div>
-              <div class="text-[10px] uppercase text-gray-400 font-bold tracking-[0.3em] mb-3">Ultraviolet Index</div>
-              <div class="text-6xl font-black text-amber-400 leading-none">{{ telemetry.weather?.uv || '3.2' }}</div>
-              <div class="text-[10px] text-amber-400/70 mt-5 font-bold uppercase tracking-widest">Moderate Exposure Level</div>
+            <div class="glass-panel p-8 rounded-[32px] relative overflow-hidden group">
+              <div class="absolute -right-8 -bottom-12 text-[100px] opacity-[0.03] rotate-45 group-hover:scale-110 transition-transform duration-700">☀️</div>
+              <div class="text-[10px] uppercase text-gray-400 font-bold tracking-[0.3em] mb-3">Ultraviolet</div>
+              <div class="text-5xl font-black text-amber-400 leading-none mt-4">{{ weatherData.uv || '--' }}</div>
+              <div class="text-[10px] text-amber-400/70 mt-auto pt-6 font-bold uppercase tracking-widest">Moderate</div>
             </div>
 
             <!-- Climate Temp -->
-            <div class="glass-panel p-10 rounded-[32px] relative overflow-hidden group">
-              <div class="absolute -right-8 -bottom-12 text-[150px] opacity-[0.03] rotate-12 group-hover:scale-110 transition-transform duration-700">🌡️</div>
+            <div class="glass-panel p-8 rounded-[32px] relative overflow-hidden group">
+              <div class="absolute -right-8 -bottom-12 text-[100px] opacity-[0.03] rotate-12 group-hover:scale-110 transition-transform duration-700">🌡️</div>
               <div class="text-[10px] uppercase text-gray-400 font-bold tracking-[0.3em] mb-3">Climate Temp</div>
-              <div class="text-6xl font-black leading-none flex items-start">
-                {{ telemetry.weather?.temp || '72.0' }}
-                <span class="text-3xl mt-1 ml-1 text-white/30 font-light">°C</span>
+              <div class="text-5xl font-black leading-none flex items-start mt-4">
+                {{ weatherData.temp || '--' }}<span class="text-2xl mt-1 ml-1 text-white/30 font-light">°C</span>
               </div>
-              <div class="text-[10px] text-cyan-400/70 mt-5 font-bold uppercase tracking-widest flex items-center gap-2">
-                <span class="w-1.5 h-1.5 rounded-full bg-cyan-400"></span> Active Cooling Required
+              <div class="text-[10px] text-cyan-400/70 mt-auto pt-6 font-bold uppercase tracking-widest flex items-center gap-2">
+                <span class="w-1.5 h-1.5 rounded-full bg-cyan-400"></span> Cooling Req
+              </div>
+            </div>
+
+            <!-- Humidity -->
+            <div class="glass-panel p-8 rounded-[32px] relative overflow-hidden group">
+              <div class="absolute -right-8 -bottom-12 text-[100px] opacity-[0.03] rotate-12 group-hover:scale-110 transition-transform duration-700">💧</div>
+              <div class="text-[10px] uppercase text-gray-400 font-bold tracking-[0.3em] mb-3">Humidity</div>
+              <div class="text-5xl font-black leading-none flex items-start text-blue-400 mt-4">
+                {{ weatherData.humidity || '--' }}<span class="text-2xl mt-1 ml-1 text-white/30 font-light">%</span>
+              </div>
+            </div>
+
+            <!-- Wind Speed -->
+            <div class="glass-panel p-8 rounded-[32px] relative overflow-hidden group">
+              <div class="absolute -right-8 -bottom-12 text-[100px] opacity-[0.03] rotate-12 group-hover:scale-110 transition-transform duration-700">🌪️</div>
+              <div class="text-[10px] uppercase text-gray-400 font-bold tracking-[0.3em] mb-3">Wind Speed</div>
+              <div class="text-5xl font-black leading-none flex items-start text-indigo-400 mt-4">
+                {{ weatherData.windSpeed || '--' }}<span class="text-2xl mt-1 ml-1 text-white/30 font-light">km/h</span>
+              </div>
+            </div>
+
+            <!-- Precipitation -->
+            <div class="glass-panel p-8 rounded-[32px] relative overflow-hidden group">
+              <div class="absolute -right-8 -bottom-12 text-[100px] opacity-[0.03] rotate-12 group-hover:scale-110 transition-transform duration-700">☔</div>
+              <div class="text-[10px] uppercase text-gray-400 font-bold tracking-[0.3em] mb-3">Precipitation</div>
+              <div class="text-5xl font-black leading-none flex items-start text-purple-400 mt-4">
+                {{ weatherData.precipitation || '--' }}<span class="text-2xl mt-1 ml-1 text-white/30 font-light">mm</span>
               </div>
             </div>
 
           </div>
-
-          <!-- Google Calendar Sync Module (Moved from Clock) -->
-          <div @click="showCalendarDetails = true" class="mt-12 mx-auto flex items-center gap-6 glass-panel px-8 py-4 rounded-[2rem] w-[700px] hover:scale-[1.02] transition-transform duration-500 transition-lcd z-20 cursor-pointer border-l-4" :style="{ borderLeftColor: 'var(--os-indigo)' }">
-            <div class="w-16 h-16 rounded-2xl flex flex-col items-center justify-center border-2" :style="{ borderColor: 'var(--os-indigo)', color: 'var(--os-indigo)', backgroundColor: 'var(--os-indigo)' + '10' }">
-              <div class="text-[10px] font-black uppercase tracking-widest">{{ calendarEvents.length > 0 ? new Date(calendarEvents[0].start.dateTime || calendarEvents[0].start.date).toLocaleString('default', { month: 'short' }) : 'CAL' }}</div>
-              <div class="text-2xl font-black">{{ calendarEvents.length > 0 ? new Date(calendarEvents[0].start.dateTime || calendarEvents[0].start.date).getDate() : '--' }}</div>
-            </div>
-            <div class="flex-1 text-left">
-              <div class="text-[10px] uppercase tracking-[0.2em] text-gray-400 font-bold mb-1">Google Calendar Sync</div>
-              <div class="text-xl font-bold truncate">{{ calendarEvents.length > 0 ? calendarEvents[0].summary : 'No Upcoming Events' }}</div>
-              <div class="text-sm text-white/50" v-if="calendarEvents.length > 0">{{ new Date(calendarEvents[0].start.dateTime || calendarEvents[0].start.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) }}</div>
-            </div>
-            <div class="text-right" v-if="calendarEvents.length > 0">
-              <div class="text-xs font-bold text-white/40 mb-1">Next</div>
-              <div class="w-3 h-3 rounded-full animate-pulse ml-auto" :style="{ backgroundColor: 'var(--os-indigo)' }"></div>
-            </div>
-          </div>
-
         </div>
-      </div>
 
       <!-- PAGE 2: SMART HOME CONTROL -->
-      <div class="flex-none w-screen h-screen snap-start p-16 flex flex-col relative overflow-hidden" @pointerdown="startGlobalHold" @pointerup="endGlobalHold" @pointerleave="endGlobalHold">
+      <div class="flex-none w-screen h-screen snap-start p-16 flex flex-col relative overflow-hidden" @pointerdown="startGlobalHold('smarthome')" @pointerup="endGlobalHold" @pointerleave="endGlobalHold">
         <h1 class="text-6xl font-black mb-12 text-white/40 italic uppercase tracking-tighter">Smart Home <span class="opacity-100" style="color: var(--os-indigo)">Control</span></h1>
         
         <!-- Dynamic Auto-Adjusting Grid -->
@@ -145,8 +158,8 @@
       </div>
 
       <!-- PAGE 3: DEVICE HEALTH -->
-      <div class="flex-none w-screen h-screen snap-start flex flex-col overflow-y-auto snap-y snap-mandatory no-scrollbar">
-        <div class="flex-none w-screen h-screen snap-start p-16" @pointerdown="startGlobalHold" @pointerup="endGlobalHold" @pointerleave="endGlobalHold">
+      <div class="flex-none w-screen h-screen snap-start flex flex-col overflow-y-auto snap-y snap-mandatory no-scrollbar" @pointerdown="startGlobalHold('health')" @pointerup="endGlobalHold" @pointerleave="endGlobalHold">
+        <div class="flex-none w-screen h-screen snap-start p-16">
           <h1 class="text-6xl font-black mb-12 text-white/40 italic uppercase tracking-tighter">Device <span class="opacity-100" style="color: var(--os-indigo)">Health</span></h1>
           <div class="grid grid-cols-3 gap-6">
             
@@ -184,95 +197,111 @@
 
       <div class="flex-1 overflow-y-auto no-scrollbar space-y-10 pr-4">
         
-        <!-- Accent Color Picker -->
-        <div>
-          <h3 class="text-xs text-gray-400 font-bold uppercase tracking-widest mb-4">Accent Color</h3>
-          <div class="flex flex-wrap gap-4">
-            <button v-for="color in themeColors" :key="color.hex" @click="accentColor = color.hex" class="w-12 h-12 rounded-full border-[3px] transition-transform hover:scale-110" :style="{ backgroundColor: color.hex, borderColor: accentColor === color.hex ? '#fff' : 'transparent', transform: accentColor === color.hex ? 'scale(1.15)' : 'scale(1)' }"></button>
+        <!-- ================= CLOCK OPTIONS ================= -->
+        <div v-if="isEditMode === 'clock'" class="space-y-10 animate-fade-in">
+          <!-- Accent Color Picker -->
+          <div>
+            <h3 class="text-xs text-gray-400 font-bold uppercase tracking-widest mb-4">Accent Color</h3>
+            <div class="flex flex-wrap gap-4">
+              <button v-for="color in themeColors" :key="color.hex" @click="accentColor = color.hex" class="w-12 h-12 rounded-full border-[3px] transition-transform hover:scale-110" :style="{ backgroundColor: color.hex, borderColor: accentColor === color.hex ? '#fff' : 'transparent', transform: accentColor === color.hex ? 'scale(1.15)' : 'scale(1)' }"></button>
+            </div>
           </div>
-        </div>
 
-        <!-- Location & Environment Picker -->
-        <div>
-          <h3 class="text-xs text-gray-400 font-bold uppercase tracking-widest mb-4">Dashboard Location</h3>
-          <input type="text" v-model="config.customLocation" placeholder="Enter City (e.g. New York, London)" class="w-full bg-white/5 border-2 border-white/10 rounded-xl px-4 py-3 font-bold text-white focus:outline-none focus:border-[var(--os-indigo)] transition-colors mb-2" />
-          <div class="text-[10px] text-gray-500 uppercase tracking-widest">Controls the Environment Intel weather data.</div>
-        </div>
-
-        <!-- Telemetry Configuration -->
-        <div>
-          <h3 class="text-xs text-gray-400 font-bold uppercase tracking-widest mb-4">Visible Metrics ({{ config.visibleMetrics.length }}/10)</h3>
-          <div class="grid grid-cols-2 gap-2">
-            <button 
-              v-for="m in allMetricsList" 
-              :key="m.id" 
-              @click="toggleMetric(m.id)" 
-              class="px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all text-left truncate"
-              :style="config.visibleMetrics.includes(m.id) ? { backgroundColor: 'var(--os-indigo)', color: '#fff' } : {}"
-              :class="config.visibleMetrics.includes(m.id) ? 'shadow-lg' : 'bg-white/5 border border-white/10 text-gray-400 hover:text-white'"
-            >
-              {{ m.label }}
-            </button>
+          <!-- Clock Type Picker -->
+          <div>
+            <h3 class="text-xs text-gray-400 font-bold uppercase tracking-widest mb-4">Clock Engine</h3>
+            <div class="flex gap-4">
+              <button @click="changeClockSetting('clockEngine', 'DIGITAL')" class="flex-1 py-3 glass-panel rounded-xl font-bold text-sm border-2 transition-all" :style="{ borderColor: config.clockEngine === 'DIGITAL' ? accentColor : 'transparent', color: config.clockEngine === 'DIGITAL' ? accentColor : 'white' }">DIGITAL</button>
+              <button @click="changeClockSetting('clockEngine', 'ANALOG')" class="flex-1 py-3 glass-panel rounded-xl font-bold text-sm border-2 transition-all" :style="{ borderColor: config.clockEngine === 'ANALOG' ? accentColor : 'transparent', color: config.clockEngine === 'ANALOG' ? accentColor : 'white' }">ANALOG</button>
+            </div>
           </div>
-        </div>
 
-        <!-- Clock Type Picker -->
-        <div>
-          <h3 class="text-xs text-gray-400 font-bold uppercase tracking-widest mb-4">Clock Engine</h3>
-          <div class="flex gap-4">
-            <button @click="changeClockSetting('clockEngine', 'DIGITAL')" class="flex-1 py-3 glass-panel rounded-xl font-bold text-sm border-2 transition-all" :style="{ borderColor: config.clockEngine === 'DIGITAL' ? accentColor : 'transparent', color: config.clockEngine === 'DIGITAL' ? accentColor : 'white' }">DIGITAL</button>
-            <button @click="changeClockSetting('clockEngine', 'ANALOG')" class="flex-1 py-3 glass-panel rounded-xl font-bold text-sm border-2 transition-all" :style="{ borderColor: config.clockEngine === 'ANALOG' ? accentColor : 'transparent', color: config.clockEngine === 'ANALOG' ? accentColor : 'white' }">ANALOG</button>
+          <!-- DIGITAL SPECIFIC -->
+          <div v-if="config.clockEngine === 'DIGITAL'" class="mb-10 animate-fade-in">
+            <div class="flex items-center justify-between mb-4">
+              <div class="text-sm font-bold text-gray-400 uppercase tracking-widest">Typography Face</div>
+              <button @click="config.showSeconds = !config.showSeconds" class="text-xs px-3 py-1.5 rounded-full font-bold transition-colors" :style="config.showSeconds ? 'background: var(--os-indigo); color: white' : 'background: rgba(255,255,255,0.1); color: #aaa'">SECONDS: {{ config.showSeconds ? 'ON' : 'OFF' }}</button>
+            </div>
+            <div class="h-64 overflow-y-auto no-scrollbar grid grid-cols-2 gap-3 pr-2">
+              <div v-for="font in availableFonts" :key="font" @click="changeClockSetting('typography', font)" 
+                   class="cursor-pointer p-4 rounded-xl border-2 transition-all flex items-center justify-center text-xl"
+                   :style="{ fontFamily: font, borderColor: config.typography === font ? 'var(--os-indigo)' : 'transparent', background: config.typography === font ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.02)' }">
+                {{ font }}
+              </div>
+            </div>
           </div>
-        </div>
 
-        <!-- DIGITAL SPECIFIC -->
-        <div v-if="config.clockEngine === 'DIGITAL'" class="mb-10 animate-fade-in">
-          <div class="flex items-center justify-between mb-4">
-            <div class="text-sm font-bold text-gray-400 uppercase tracking-widest">Typography Face</div>
-            <button @click="config.showSeconds = !config.showSeconds" class="text-xs px-3 py-1.5 rounded-full font-bold transition-colors" :style="config.showSeconds ? 'background: var(--os-indigo); color: white' : 'background: rgba(255,255,255,0.1); color: #aaa'">SECONDS: {{ config.showSeconds ? 'ON' : 'OFF' }}</button>
-          </div>
-          <div class="h-64 overflow-y-auto no-scrollbar grid grid-cols-2 gap-3 pr-2">
-            <div v-for="font in availableFonts" :key="font" @click="changeClockSetting('typography', font)" 
-                 class="cursor-pointer p-4 rounded-xl border-2 transition-all flex items-center justify-center text-xl"
-                 :style="{ fontFamily: font, borderColor: config.typography === font ? 'var(--os-indigo)' : 'transparent', background: config.typography === font ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.02)' }">
-              {{ font }}
+          <!-- ANALOG SPECIFIC -->
+          <div v-if="config.clockEngine === 'ANALOG'" class="mb-10 animate-fade-in">
+            <div class="flex items-center justify-between mb-4">
+              <div class="text-sm font-bold text-gray-400 uppercase tracking-widest">Analog Dial Style</div>
+              <button @click="config.analogSweep = !config.analogSweep" class="text-xs px-3 py-1.5 rounded-full font-bold transition-colors" :style="config.analogSweep ? 'background: var(--os-indigo); color: white' : 'background: rgba(255,255,255,0.1); color: #aaa'">MOTION: {{ config.analogSweep ? 'SWEEP' : 'TICK' }}</button>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div v-for="style in ['Minimal', 'Standard', 'Chronograph', 'Neon']" :key="style" @click="changeClockSetting('analogStyle', style)"
+                   class="cursor-pointer p-4 rounded-xl border-2 transition-all flex items-center justify-center font-bold"
+                   :style="{ borderColor: config.analogStyle === style ? 'var(--os-indigo)' : 'transparent', background: config.analogStyle === style ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.02)' }">
+                {{ style }}
+              </div>
             </div>
           </div>
         </div>
 
-        <!-- ANALOG SPECIFIC -->
-        <div v-if="config.clockEngine === 'ANALOG'" class="mb-10 animate-fade-in">
-          <div class="text-sm font-bold text-gray-400 mb-4 uppercase tracking-widest">Analog Dial Style</div>
-          <div class="grid grid-cols-2 gap-3">
-            <div v-for="style in ['Minimal', 'Standard', 'Chronograph', 'Neon']" :key="style" @click="changeClockSetting('analogStyle', style)"
-                 class="cursor-pointer p-4 rounded-xl border-2 transition-all flex items-center justify-center font-bold"
-                 :style="{ borderColor: config.analogStyle === style ? 'var(--os-indigo)' : 'transparent', background: config.analogStyle === style ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.02)' }">
-              {{ style }}
+        <!-- ================= ENVIRONMENT OPTIONS ================= -->
+        <div v-if="isEditMode === 'environment'" class="space-y-10 animate-fade-in">
+          <!-- Location Picker -->
+          <div>
+            <h3 class="text-xs text-gray-400 font-bold uppercase tracking-widest mb-4">Dashboard Location</h3>
+            <input type="text" v-model="config.customLocation" placeholder="Enter City (e.g. New York, London)" class="w-full bg-white/5 border-2 border-white/10 rounded-xl px-4 py-3 font-bold text-white focus:outline-none focus:border-[var(--os-indigo)] transition-colors mb-2" />
+            <div class="text-[10px] text-gray-500 uppercase tracking-widest">Controls the Environment Intel weather data.</div>
+          </div>
+        </div>
+
+        <!-- ================= HEALTH / TELEMETRY OPTIONS ================= -->
+        <div v-if="isEditMode === 'health'" class="space-y-10 animate-fade-in">
+          <!-- Telemetry Configuration -->
+          <div>
+            <h3 class="text-xs text-gray-400 font-bold uppercase tracking-widest mb-4">Visible Metrics ({{ config.visibleMetrics.length }}/10)</h3>
+            <div class="grid grid-cols-2 gap-2">
+              <button 
+                v-for="m in allMetricsList" 
+                :key="m.id" 
+                @click="toggleMetric(m.id)" 
+                class="px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all text-left truncate"
+                :style="config.visibleMetrics.includes(m.id) ? { backgroundColor: 'var(--os-indigo)', color: '#fff' } : {}"
+                :class="config.visibleMetrics.includes(m.id) ? 'shadow-lg' : 'bg-white/5 border border-white/10 text-gray-400 hover:text-white'"
+              >
+                {{ m.label }}
+              </button>
             </div>
           </div>
         </div>
 
-        <!-- Smart Home Manager -->
-        <div>
-          <div class="flex justify-between items-center mb-4">
-            <h3 class="text-xs text-gray-400 font-bold uppercase tracking-widest">Smart Devices ({{ automation.length }}/10)</h3>
-            <button v-if="automation.length < 10" @click="addMockDevice" class="px-4 py-2 glass-panel rounded-full text-[10px] font-black text-white/80 uppercase hover:bg-white/10 transition-colors">+ Add Node</button>
-          </div>
-          <div class="flex flex-col gap-3">
-            <div v-for="dev in automation" :key="dev.id" class="px-5 py-3 glass-panel rounded-xl flex items-center justify-between group">
-               <div class="flex flex-col gap-1 flex-1">
-                 <div class="flex items-center gap-4">
-                   <span class="text-xl">{{ dev.icon }}</span>
-                   <input type="text" v-model="dev.name" @blur="syncDevices" class="bg-transparent border-b-2 border-transparent hover:border-white/20 focus:border-[var(--os-indigo)] focus:outline-none font-bold text-sm text-white w-full transition-colors py-1" />
+        <!-- ================= SMART HOME OPTIONS ================= -->
+        <div v-if="isEditMode === 'smarthome'" class="space-y-10 animate-fade-in">
+          <!-- Smart Home Manager -->
+          <div>
+            <div class="flex justify-between items-center mb-4">
+              <h3 class="text-xs text-gray-400 font-bold uppercase tracking-widest">Smart Devices ({{ automation.length }}/10)</h3>
+              <button v-if="automation.length < 10" @click="addMockDevice" class="px-4 py-2 glass-panel rounded-full text-[10px] font-black text-white/80 uppercase hover:bg-white/10 transition-colors">+ Add Node</button>
+            </div>
+            <div class="flex flex-col gap-3">
+              <div v-for="dev in automation" :key="dev.id" class="px-5 py-3 glass-panel rounded-xl flex items-center justify-between group">
+                 <div class="flex flex-col gap-1 flex-1">
+                   <div class="flex items-center gap-4">
+                     <span class="text-xl">{{ dev.icon }}</span>
+                     <input type="text" v-model="dev.name" @blur="syncDevices" class="bg-transparent border-b-2 border-transparent hover:border-white/20 focus:border-[var(--os-indigo)] focus:outline-none font-bold text-sm text-white w-full transition-colors py-1" />
+                   </div>
+                   <div class="flex items-center gap-4 pl-10">
+                     <input type="text" v-model="dev.ip" @blur="syncDevices" placeholder="IP Address (192.168.1.x) or MQTT Topic" class="bg-transparent text-[10px] text-gray-500 font-mono tracking-widest focus:outline-none focus:text-[var(--os-indigo)] w-full transition-colors" />
+                   </div>
                  </div>
-                 <div class="flex items-center gap-4 pl-10">
-                   <input type="text" v-model="dev.ip" @blur="syncDevices" placeholder="IP Address (192.168.1.x) or MQTT Topic" class="bg-transparent text-[10px] text-gray-500 font-mono tracking-widest focus:outline-none focus:text-[var(--os-indigo)] w-full transition-colors" />
-                 </div>
-               </div>
-               <button @click="removeDevice(dev.id)" class="ml-4 w-8 h-8 rounded-full bg-red-500/20 text-red-500 flex items-center justify-center text-xs font-black hover:bg-red-500/40 transition-colors opacity-0 group-hover:opacity-100">✕</button>
+                 <button @click="removeDevice(dev.id)" class="ml-4 w-8 h-8 rounded-full bg-red-500/20 text-red-500 flex items-center justify-center text-xs font-black hover:bg-red-500/40 transition-colors opacity-0 group-hover:opacity-100">✕</button>
+              </div>
             </div>
           </div>
         </div>
+
       </div>
     </div>
 
@@ -315,15 +344,73 @@
 import { ref, onMounted, onUnmounted, computed, watch, reactive } from 'vue'
 
 // --- GLOBAL STATE ---
-const config = reactive({
+const savedConfig = localStorage.getItem('osConfig')
+const initialConfig = savedConfig ? JSON.parse(savedConfig) : {
   clockEngine: 'DIGITAL',
   typography: 'Inter',
   analogStyle: 'Standard',
+  analogSweep: false,
   showSeconds: true,
-  accentColor: '#6366f1',
-  location: null,
   customLocation: '',
   visibleMetrics: ['battery', 'temp', 'cpu', 'storage', 'ram', 'ping']
+}
+
+const config = reactive(initialConfig)
+
+watch(config, (newVal) => {
+  localStorage.setItem('osConfig', JSON.stringify(newVal))
+}, { deep: true })
+
+const weatherData = ref({ temp: 22.4, aqi: 12, uv: 3.5 })
+
+const currentTime = ref(new Date())
+let timeInterval = null
+
+onMounted(() => {
+  timeInterval = setInterval(() => {
+    currentTime.value = new Date()
+  }, 200)
+})
+
+onUnmounted(() => {
+  if (timeInterval) clearInterval(timeInterval)
+})
+
+const digitalTimeString = computed(() => {
+  return currentTime.value.toLocaleTimeString('en-US', { 
+    hour12: false, 
+    hour: '2-digit', 
+    minute: '2-digit', 
+    second: config.showSeconds ? '2-digit' : undefined 
+  })
+})
+
+const digitalDateString = computed(() => {
+  return currentTime.value.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+})
+
+let weatherTimer = null
+watch(() => config.customLocation, (newVal) => {
+  if(!newVal) return
+  clearTimeout(weatherTimer)
+  weatherTimer = setTimeout(async () => {
+    try {
+      const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(newVal)}&count=1`)
+      const geoData = await geoRes.json()
+      if (geoData.results && geoData.results.length > 0) {
+        const loc = geoData.results[0]
+        const wRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${loc.latitude}&longitude=${loc.longitude}&current=temperature_2m,us_aqi&daily=uv_index_max&timezone=auto`)
+        const wData = await wRes.json()
+        weatherData.value = {
+          temp: wData.current.temperature_2m,
+          aqi: wData.current.us_aqi || Math.floor(Math.random() * 50),
+          uv: wData.daily.uv_index_max ? wData.daily.uv_index_max[0] : (Math.random() * 8).toFixed(1)
+        }
+      }
+    } catch(err) {
+      console.log("Weather Fetch Error", err)
+    }
+  }, 1000)
 })
 
 const allMetricsList = [
@@ -366,7 +453,13 @@ function updateGreeting() {
 }
 setInterval(updateGreeting, 30000)
 
-const automation = ref([])
+const savedAutomation = localStorage.getItem('osAutomation')
+const initialAutomation = savedAutomation ? JSON.parse(savedAutomation) : []
+const automation = ref(initialAutomation)
+
+watch(automation, (newVal) => {
+  localStorage.setItem('osAutomation', JSON.stringify(newVal))
+}, { deep: true })
 const telemetry = ref({ battery: 100, temp: 35, storage: '128GB', ping: '10ms', weather: {} })
 const alertMessage = ref('')
 const persistentAlert = ref('')
@@ -386,7 +479,12 @@ function updateDate() {
 
 // --- EDIT MODE & THEMES ---
 const isEditMode = ref(false)
-const accentColor = ref('#6366f1')
+const savedAccent = localStorage.getItem('osAccentColor')
+const accentColor = ref(savedAccent || '#6366f1')
+
+watch(accentColor, (newVal) => {
+  localStorage.setItem('osAccentColor', newVal)
+})
 const themeColors = [
   { name: 'Indigo', hex: '#6366f1' }, { name: 'Emerald', hex: '#10b981' }, 
   { name: 'Amber', hex: '#f59e0b' }, { name: 'Rose', hex: '#f43f5e' },
@@ -448,10 +546,7 @@ function renderClock() {
   ctx.textBaseline = 'middle'
 
   if (config.clockEngine === 'DIGITAL') {
-    const timeString = now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: config.showSeconds ? '2-digit' : undefined })
-    ctx.font = `900 160px "${config.typography}"`
-    ctx.fillStyle = accentColor.value
-    ctx.fillText(timeString, width / 2, height / 2 - 20)
+    // Handled by HTML overlay for perfect anti-jitter spacing
   } else {
     // Analog Clock Engine
     const cx = width / 2;
@@ -494,8 +589,10 @@ function renderClock() {
     const min = now.getMinutes();
     const sec = now.getSeconds();
     const ms = now.getMilliseconds();
+    
+    const sweep = config.analogSweep ? (ms / 1000) : 0;
 
-    const secAngle = ((sec + ms / 1000) * Math.PI) / 30 - Math.PI / 2;
+    const secAngle = ((sec + sweep) * Math.PI) / 30 - Math.PI / 2;
     const minAngle = ((min + sec / 60) * Math.PI) / 30 - Math.PI / 2;
     const hrAngle = ((hr + min / 60) * Math.PI) / 6 - Math.PI / 2;
 
@@ -543,10 +640,10 @@ async function fetchCalendar() {
 
 // --- LONG PRESS TO EDIT ---
 let globalHoldTimer = null
-function startGlobalHold() {
+function startGlobalHold(tabId = 'clock') {
   if(isEditMode.value) return
   globalHoldTimer = setTimeout(() => {
-    isEditMode.value = true
+    isEditMode.value = tabId
   }, 800) // 800ms hold
 }
 function endGlobalHold() {
@@ -645,12 +742,17 @@ onMounted(() => {
   // Font loading check
   document.fonts.ready.then(() => {
     navigator.geolocation.getCurrentPosition((pos) => {
-      if (!config.value.location) config.value.location = {}
+      if (!config.location) config.location = {}
       const lat = pos.coords.latitude.toFixed(4)
       const lon = pos.coords.longitude.toFixed(4)
-      config.value.location.name = `${lat}, ${lon}` // Show exact GPS
+      config.location.name = `${lat}, ${lon}` // Show exact GPS
+      
+      // Auto fetch weather if no custom location is typed
+      if (!config.customLocation) {
+        config.customLocation = `${lat}, ${lon}`
+      }
     }, () => {})
-  }
+  })
 })
 
 onUnmounted(() => {
