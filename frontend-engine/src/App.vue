@@ -628,7 +628,7 @@ function setDeviceColor(dev, hex) {
   dev.color = hex
 }
 
-async function refreshWeather() {
+async function refreshWeather(silent = false) {
   if (!config.customLocation) return
   try {
     const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(config.customLocation)}&count=1`)
@@ -636,10 +636,10 @@ async function refreshWeather() {
     if (geoData.results && geoData.results.length > 0) {
       const loc = geoData.results[0]
       await fetchWeatherByCoords(loc.latitude, loc.longitude)
-      showAlert('Weather Updated')
+      if (!silent) showAlert('Weather Updated')
     }
   } catch(err) {
-    showAlert('Refresh Failed')
+    if (!silent) showAlert('Refresh Failed')
   }
 }
 
@@ -729,6 +729,7 @@ const isListening = ref(false)
 const clockStack = ref(null)
 const viewport = ref(null)
 const isChangingClock = ref(false)
+let autoRefreshInterval = null
 const showCalendarDetails = ref(false)
 const calendarEvents = ref([])
 
@@ -1059,12 +1060,19 @@ onMounted(() => {
     },
     geoOptions
   )
+
+  // --- AUTOMATIC REFRESH CYCLES ---
+  autoRefreshInterval = setInterval(() => {
+    refreshWeather(true)
+  }, 60000) // Every 1 minute
 })
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeydown)
   if (clockAnimFrame) cancelAnimationFrame(clockAnimFrame)
   if (ws) ws.close()
+  if (timeInterval) clearInterval(timeInterval)
+  if (autoRefreshInterval) clearInterval(autoRefreshInterval)
 })
 
 </script>
