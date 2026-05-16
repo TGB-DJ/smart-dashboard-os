@@ -117,8 +117,11 @@
               </div>
             </div>
 
-          </div>
-        </div>
+          </div><!-- /grid -->
+        </div><!-- /environment panel -->
+
+      </div><!-- /clockStack -->
+
 
       <!-- PAGE 2: SMART HOME CONTROL -->
       <div class="flex-none w-screen h-screen snap-start p-16 flex flex-col relative overflow-hidden" @pointerdown="startGlobalHold('smarthome')" @pointerup="endGlobalHold" @pointerleave="endGlobalHold">
