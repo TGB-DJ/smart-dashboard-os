@@ -30,15 +30,15 @@
           <!-- WebGL/Canvas Fallback for Time -->
           <canvas ref="clockCanvas" class="absolute inset-0 pointer-events-none z-0" width="1560" height="720"></canvas>
           
-          <!-- HTML Overlay for Digital Clock (Refined flex layout for stability) -->
+          <!-- HTML Overlay for Digital Clock (Spacious layout for stability) -->
           <div v-if="config.clockEngine === 'DIGITAL'" class="absolute z-10 flex flex-col items-center justify-center font-black pointer-events-none transition-lcd select-none" :style="{ fontFamily: config.typography, color: accentColor, opacity: isChangingClock ? 0 : 1 }">
-             <div class="text-[180px] leading-none whitespace-nowrap flex items-center justify-center">
-               <span class="inline-block w-[1.2ch] text-center">{{ digitalTimeParts.hh }}</span>
-               <span class="opacity-60 text-[0.8em] mx-[-0.1ch]">:</span>
-               <span class="inline-block w-[1.2ch] text-center">{{ digitalTimeParts.mm }}</span>
+             <div class="text-[180px] leading-none whitespace-nowrap flex items-center justify-center gap-4">
+               <span class="inline-block min-w-[1.1ch] text-center">{{ digitalTimeParts.hh }}</span>
+               <span class="opacity-60 text-[0.8em]">:</span>
+               <span class="inline-block min-w-[1.1ch] text-center">{{ digitalTimeParts.mm }}</span>
                <template v-if="config.showSeconds">
-                 <span class="opacity-60 text-[0.6em] mx-[-0.1ch]">:</span>
-                 <span class="inline-block w-[1.2ch] text-center text-[0.8em]">{{ digitalTimeParts.ss }}</span>
+                 <span class="opacity-60 text-[0.6em]">:</span>
+                 <span class="inline-block min-w-[1.1ch] text-center text-[0.8em]">{{ digitalTimeParts.ss }}</span>
                </template>
              </div>
 
@@ -788,21 +788,19 @@ function syncDevices() {
   }
 }
 
-// --- CLOCK ENGINE (Canvas high-precision) ---
-const clockCanvas = ref(null)
-let clockAnimFrame = null
-
 function renderClock() {
-  if (!clockCanvas.value) return
-  const ctx = clockCanvas.value.getContext('2d')
-  const width = clockCanvas.value.width
-  const height = clockCanvas.value.height
-  
-  ctx.clearRect(0, 0, width, height)
   const now = new Date()
-  currentTime.value = now // Sync digital clock with analog frame
+  currentTime.value = now // Update time for digital clock regardless of canvas state
   
-  ctx.textAlign = 'center'
+  if (clockCanvas.value) {
+    const ctx = clockCanvas.value.getContext('2d')
+    const width = clockCanvas.value.width
+    const height = clockCanvas.value.height
+    
+    ctx.clearRect(0, 0, width, height)
+    
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
   ctx.textBaseline = 'middle'
 
   if (config.clockEngine === 'DIGITAL') {
