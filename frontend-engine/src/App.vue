@@ -333,7 +333,7 @@ watch(config, (newVal) => {
   localStorage.setItem('osConfig', JSON.stringify(newVal))
 }, { deep: true })
 
-const weatherData = ref({ temp: 22.4, aqi: 12, uv: 3.5 })
+const weatherData = ref({ temp: null, aqi: null, uv: null, humidity: null, windSpeed: null, precipitation: null })
 
 const currentTime = ref(new Date())
 let timeInterval = null
@@ -361,6 +361,28 @@ const digitalDateString = computed(() => {
   return currentTime.value.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
 })
 
+async function fetchWeatherByCoords(lat, lon) {
+  try {
+    const wRes = await fetch(
+      `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
+      `&current=temperature_2m,relative_humidity_2m,wind_speed_10m,precipitation,us_aqi` +
+      `&daily=uv_index_max&timezone=auto&forecast_days=1`
+    )
+    const wData = await wRes.json()
+    const cur = wData.current
+    weatherData.value = {
+      temp: cur.temperature_2m ?? null,
+      humidity: cur.relative_humidity_2m ?? null,
+      windSpeed: cur.wind_speed_10m ?? null,
+      precipitation: cur.precipitation ?? null,
+      aqi: cur.us_aqi ?? null,
+      uv: wData.daily?.uv_index_max?.[0] ?? null
+    }
+  } catch(err) {
+    console.log('[Weather] Fetch error', err)
+  }
+}
+
 let weatherTimer = null
 watch(() => config.customLocation, (newVal) => {
   if(!newVal) return
@@ -371,16 +393,10 @@ watch(() => config.customLocation, (newVal) => {
       const geoData = await geoRes.json()
       if (geoData.results && geoData.results.length > 0) {
         const loc = geoData.results[0]
-        const wRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${loc.latitude}&longitude=${loc.longitude}&current=temperature_2m,us_aqi&daily=uv_index_max&timezone=auto`)
-        const wData = await wRes.json()
-        weatherData.value = {
-          temp: wData.current.temperature_2m,
-          aqi: wData.current.us_aqi || Math.floor(Math.random() * 50),
-          uv: wData.daily.uv_index_max ? wData.daily.uv_index_max[0] : (Math.random() * 8).toFixed(1)
-        }
+        await fetchWeatherByCoords(loc.latitude, loc.longitude)
       }
     } catch(err) {
-      console.log("Weather Fetch Error", err)
+      console.log('[Geo] Fetch error', err)
     }
   }, 1000)
 })
@@ -711,19 +727,33 @@ onMounted(() => {
   initVoiceEngine()
 
   
-  // Font loading check
+  // Auto-fetch weather from GPS on startup
   document.fonts.ready.then(() => {
-    navigator.geolocation.getCurrentPosition((pos) => {
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+      const lat = pos.coords.latitude
+      const lon = pos.coords.longitude
+      const latStr = lat.toFixed(4)
+      const lonStr = lon.toFixed(4)
+
       if (!config.location) config.location = {}
-      const lat = pos.coords.latitude.toFixed(4)
-      const lon = pos.coords.longitude.toFixed(4)
-      config.location.name = `${lat}, ${lon}` // Show exact GPS
-      
-      // Auto fetch weather if no custom location is typed
+      config.location.name = `${latStr}, ${lonStr}`
+
+      // Fetch real weather immediately using GPS coords
+      await fetchWeatherByCoords(lat, lon)
+
+      // If user hasn't typed a custom location, set GPS as display label
       if (!config.customLocation) {
-        config.customLocation = `${lat}, ${lon}`
+        config.customLocation = `${latStr}, ${lonStr}`
       }
-    }, () => {})
+    }, () => {
+      // GPS denied — if customLocation is set, the watch() will fetch it
+      if (config.customLocation) {
+        // Trigger re-fetch manually for saved location
+        const saved = config.customLocation
+        config.customLocation = ''
+        setTimeout(() => { config.customLocation = saved }, 100)
+      }
+    })
   })
 })
 
