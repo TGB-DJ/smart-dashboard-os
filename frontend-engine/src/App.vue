@@ -119,24 +119,45 @@
         <h1 class="text-6xl font-black mb-12 text-white/40 italic uppercase tracking-tighter">Smart Home <span class="opacity-100" style="color: var(--os-indigo)">Control</span></h1>
         
         <!-- Dynamic Auto-Adjusting Grid -->
-        <div class="grid gap-8 z-10 relative flex-1 min-h-0" :style="gridStyle">
+        <div v-if="automation.length > 0" class="grid gap-8 z-10 relative flex-1 min-h-0 items-center content-center" :style="gridStyle">
           <div 
             v-for="device in automation" 
             :key="device.id"
             @click="toggleDevice(device)"
-            class="glass-panel rounded-[32px] p-8 flex flex-col justify-between cursor-pointer transition-all duration-300"
+            class="glass-panel rounded-[40px] p-10 flex flex-col justify-between cursor-pointer transition-all duration-500 group relative overflow-hidden"
+            :class="device.state ? 'scale-[1.02]' : 'hover:scale-[1.02]'"
             :style="device.state
-              ? `background: rgba(255,255,255,0.1); border-color: ${device.color || 'var(--os-indigo)'}; box-shadow: 0 0 40px ${device.color || 'var(--os-indigo)'}`
-              : ''"
+              ? `background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.05) 100%); border-color: ${device.color || 'var(--os-indigo)'}; box-shadow: 0 20px 50px -10px ${device.color || 'var(--os-indigo)'}44`
+              : 'background: rgba(255,255,255,0.03);'"
           >
-            <div class="text-4xl mb-4" :style="{ color: device.color || 'inherit' }">{{ device.icon }}</div>
-            <div>
-              <div class="text-2xl font-bold mb-1 leading-tight">{{ device.name }}</div>
-              <div class="text-[10px] uppercase tracking-widest" :class="device.state ? 'text-white' : 'text-gray-500'">
-                {{ device.state ? 'Active' : 'Standby' }}
+            <!-- Glow Background Effect -->
+            <div class="absolute -right-10 -top-10 w-40 h-40 rounded-full blur-[60px] opacity-20 transition-opacity duration-500" :style="{ backgroundColor: device.color || 'var(--os-indigo)', opacity: device.state ? 0.4 : 0.1 }"></div>
+
+            <div class="flex items-start justify-between">
+              <div class="text-5xl transition-transform duration-500 group-hover:scale-110" :style="{ color: device.color || 'inherit' }">{{ device.icon }}</div>
+              <div v-if="device.state" class="w-3 h-3 rounded-full animate-pulse" :style="{ backgroundColor: device.color || 'var(--os-indigo)' }"></div>
+            </div>
+            
+            <div class="mt-8">
+              <div class="text-3xl font-black mb-2 leading-tight tracking-tight text-white/90">{{ device.name }}</div>
+              <div class="flex items-center gap-2">
+                <div class="text-[10px] uppercase tracking-[0.3em] font-bold" :class="device.state ? 'text-white' : 'text-gray-500'">
+                  {{ device.state ? 'System Active' : 'Standby Mode' }}
+                </div>
+                <div class="h-[1px] flex-1 bg-white/10"></div>
               </div>
             </div>
+
+            <!-- Interaction Hint -->
+            <div class="absolute bottom-4 right-8 text-[8px] uppercase tracking-widest text-white/20 font-bold opacity-0 group-hover:opacity-100 transition-opacity">Tap to toggle</div>
           </div>
+        </div>
+
+        <!-- Empty State Placeholder -->
+        <div v-else class="flex-1 flex flex-col items-center justify-center z-10 opacity-30">
+          <div class="text-8xl mb-6">🛰️</div>
+          <div class="text-xl font-bold uppercase tracking-[0.4em]">No Nodes Detected</div>
+          <div class="text-[10px] mt-4 uppercase tracking-widest">Hold to open customizer and add devices</div>
         </div>
 
         <!-- Voice Recognition Visualizer Layer -->
@@ -684,7 +705,11 @@ function updateGreeting() {
 setInterval(updateGreeting, 30000)
 
 const savedAutomation = localStorage.getItem('osAutomation')
-const initialAutomation = savedAutomation ? JSON.parse(savedAutomation) : []
+const initialAutomation = savedAutomation ? JSON.parse(savedAutomation) : [
+  { id: 1, name: 'Main Gallery', icon: '🖼️', state: false, color: '#6366f1', status: 'STANDBY' },
+  { id: 2, name: 'Air Exchange', icon: '🌀', state: true, color: '#06b6d4', status: 'ACTIVE' },
+  { id: 3, name: 'Ambient Light', icon: '💡', state: false, color: '#f59e0b', status: 'STANDBY' }
+]
 const automation = ref(initialAutomation)
 
 watch(automation, (newVal) => {
@@ -737,10 +762,10 @@ const changeClockSetting = (key, value) => {
 // --- DYNAMIC GRID AUTOSIZE ---
 const gridStyle = computed(() => {
   const len = automation.value.length
-  if (len <= 2) return 'grid-template-columns: repeat(2, minmax(0, 1fr))'
-  if (len <= 4) return 'grid-template-columns: repeat(2, minmax(0, 1fr))'
-  if (len <= 6) return 'grid-template-columns: repeat(3, minmax(0, 1fr))'
-  return 'grid-template-columns: repeat(4, minmax(0, 1fr))'
+  if (len === 0) return 'display: none;'
+  if (len === 1) return 'grid-template-columns: 1fr; max-width: 500px; margin: 0 auto;'
+  if (len === 2) return 'grid-template-columns: repeat(2, 1fr); max-width: 900px; margin: 0 auto;'
+  return 'grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));'
 })
 
 function addMockDevice() {
