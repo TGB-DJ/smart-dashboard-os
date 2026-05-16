@@ -737,7 +737,7 @@ onMounted(() => {
   renderClock()
   connectWebSocket()
   initVoiceEngine()
-  fetchCalendar()
+
   
   // Font loading check
   document.fonts.ready.then(() => {
