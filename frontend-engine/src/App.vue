@@ -1,284 +1,297 @@
 <template>
-  <div class="min-h-screen bg-[#050505] text-white font-['Inter'] overflow-hidden selection:bg-emerald-500/30">
-    <!-- Main Background / Atmosphere -->
+  <div class="h-screen bg-[#020202] text-white font-['Inter'] overflow-hidden selection:bg-emerald-500/30 p-2 sm:p-4 border-[1px] border-white/5 box-border flex flex-col">
+    <!-- Atmosphere -->
     <div class="fixed inset-0 pointer-events-none overflow-hidden">
       <div class="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] bg-emerald-500/10 rounded-full blur-[120px] animate-pulse"></div>
       <div class="absolute -bottom-[10%] -right-[10%] w-[40%] h-[40%] bg-blue-500/10 rounded-full blur-[120px] animate-pulse" style="animation-delay: 2s"></div>
     </div>
 
-    <!-- PWA / Offline Status Island -->
-    <Transition name="island">
-      <div v-if="persistentAlert" class="fixed top-6 left-1/2 -translate-x-1/2 z-[100] px-6 py-2 bg-red-500/20 backdrop-blur-xl border border-red-500/30 rounded-full text-[11px] font-bold tracking-widest uppercase flex items-center gap-3">
-        <span class="w-2 h-2 bg-red-500 rounded-full animate-ping"></span>
-        {{ persistentAlert }}
+    <!-- Navigation Island -->
+    <div class="fixed bottom-8 left-1/2 -translate-x-1/2 flex gap-3 z-[100] px-6 py-2 bg-white/5 backdrop-blur-2xl rounded-full border border-white/10 shadow-2xl transition-all hover:border-emerald-500/30 group">
+      <div v-for="i in 3" :key="i" 
+           @click="scrollToPage(i)"
+           class="w-12 h-1.5 rounded-full transition-all duration-500 cursor-pointer" 
+           :class="currentPage === i ? 'bg-emerald-500 w-16 shadow-[0_0_15px_rgba(16,185,129,0.5)]' : 'bg-white/10 hover:bg-white/20'">
       </div>
-    </Transition>
+    </div>
 
-    <!-- App Context / Viewport -->
-    <div ref="viewport" class="relative h-screen flex overflow-x-auto snap-x snap-mandatory no-scrollbar scroll-smooth">
+    <!-- Viewport -->
+    <div ref="viewport" class="relative flex-grow flex overflow-x-auto snap-x snap-mandatory no-scrollbar scroll-smooth" @scroll="handleScroll">
       
       <!-- PAGE 1: TELEMETRY & SYSTEM -->
-      <section class="flex-none w-screen h-full snap-start p-10 flex flex-col relative">
-        <div class="grid grid-cols-12 gap-8 h-full">
-          
-          <!-- Left Column: Metrics & Health -->
-          <div class="col-span-4 flex flex-col gap-6">
-            <header class="mb-4">
-              <h2 class="text-4xl font-black tracking-tighter mb-1">DASHBOARD<span class="text-emerald-500">.</span></h2>
-              <p class="text-xs text-gray-500 font-medium tracking-[0.2em] uppercase">{{ currentDate }}</p>
-            </header>
-
-            <!-- Real-time Metrics Grid -->
-            <div class="grid grid-cols-1 gap-4 flex-grow">
-              <div v-for="metric in allMetricsList" :key="metric.id" class="glass-panel p-6 rounded-2xl group transition-all hover:bg-white/[0.03]">
-                <div class="flex justify-between items-start mb-2">
-                  <span class="text-[10px] font-bold tracking-widest text-gray-500 uppercase">{{ metric.label }}</span>
-                  <div :class="`w-2 h-2 rounded-full bg-${metric.iconColor}-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]`"></div>
-                </div>
-                <div class="flex items-baseline gap-1">
-                  <span class="text-3xl font-black tabular-nums">{{ telemetry[metric.id] }}{{ metric.unit }}</span>
-                  <span class="text-[10px] font-bold text-gray-600 uppercase">{{ metric.suffix }}</span>
-                </div>
-                <div class="mt-4 h-1 w-full bg-white/5 rounded-full overflow-hidden">
-                  <div class="h-full bg-emerald-500 transition-all duration-1000" :style="{ width: telemetry[metric.id] + '%' }"></div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Live weather preview -->
-            <div v-if="weatherData.temp !== null" class="glass-panel p-4 rounded-xl relative group">
-              <button @click="refreshWeather(false)" class="absolute top-2 right-2 text-[10px] text-gray-500 hover:text-white transition-colors opacity-0 group-hover:opacity-100">↻ Refresh</button>
-              <div class="text-[9px] uppercase tracking-widest text-gray-500 mb-3 font-bold">Live Readings: {{ config.customLocation }}</div>
-              <div class="grid grid-cols-3 gap-3 text-center">
-                <div class="flex flex-col">
-                  <span class="text-lg font-black">{{ formatMetricValue(weatherData.temp, 'temp') }}°{{ config.tempUnit }}</span>
-                  <span class="text-[9px] text-gray-500 uppercase tracking-widest">Temp</span>
-                </div>
-                <div class="flex flex-col">
-                  <span class="text-lg font-black text-blue-400">{{ weatherData.humidity }}%</span>
-                  <span class="text-[9px] text-gray-500 uppercase tracking-widest">Humidity</span>
-                </div>
-                <div class="flex flex-col">
-                  <span class="text-lg font-black text-indigo-400">{{ weatherData.windSpeed }}</span>
-                  <span class="text-[9px] text-gray-500 uppercase tracking-widest">km/h Wind</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Middle Column: Main Visualizer / Clock Center -->
-          <div class="col-span-8 flex flex-col gap-6">
-            <div ref="clockStack" class="flex-grow glass-panel rounded-3xl relative overflow-hidden snap-y snap-mandatory scroll-smooth no-scrollbar" @mousedown="startGlobalHold('Settings')" @mouseup="endGlobalHold" @mouseleave="endGlobalHold">
-              
-              <!-- CLOCK MODE 1: THE ENGINE -->
-              <div class="h-full w-full snap-start flex items-center justify-center relative cursor-none group">
-                <canvas ref="clockCanvas" class="absolute inset-0 w-full h-full"></canvas>
-                
-                <!-- Digital Clock Overlay (Anti-Jitter) -->
-                <div v-if="config.clockEngine === 'DIGITAL'" class="relative z-10 flex flex-col items-center select-none" :class="{ 'animate-clock-change': isChangingClock }">
-                  <div class="flex gap-4 sm:gap-6 items-center">
-                    <div class="flex gap-1 sm:gap-2">
-                      <div class="clock-digit">{{ currentTime.h1 }}</div>
-                      <div class="clock-digit">{{ currentTime.h2 }}</div>
-                    </div>
-                    <div class="text-6xl sm:text-8xl font-black text-emerald-500/50 animate-pulse">:</div>
-                    <div class="flex gap-1 sm:gap-2">
-                      <div class="clock-digit">{{ currentTime.m1 }}</div>
-                      <div class="clock-digit">{{ currentTime.m2 }}</div>
-                    </div>
-                  </div>
-                  <div class="mt-4 flex gap-4 text-xs font-bold tracking-[0.5em] text-gray-500 uppercase">
-                    <span>{{ currentDate.split(',')[0] }}</span>
-                    <span class="text-emerald-500/50">//</span>
-                    <span>{{ currentDate.split(',')[1] }}</span>
-                  </div>
-                </div>
-
-                <div class="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <div v-for="i in 3" :key="i" class="w-1.5 h-1.5 rounded-full" :class="i === 1 ? 'bg-emerald-500' : 'bg-white/10'"></div>
-                </div>
-              </div>
-
-              <!-- CLOCK MODE 2: THE CALENDAR -->
-              <div class="h-full w-full snap-start p-12 flex flex-col">
-                <h3 class="text-xs font-bold tracking-[0.3em] text-emerald-500 uppercase mb-8">Up Next / Schedule</h3>
-                <div class="flex-grow space-y-4 overflow-y-auto no-scrollbar">
-                  <div v-for="(event, i) in calendarEvents" :key="i" class="flex gap-6 items-center p-6 bg-white/[0.02] border border-white/5 rounded-2xl transition-all hover:bg-white/[0.05]">
-                    <div class="text-2xl font-black text-gray-700 w-16">{{ event.time }}</div>
-                    <div>
-                      <div class="text-lg font-bold">{{ event.title }}</div>
-                      <div class="text-xs text-gray-500 uppercase tracking-widest">{{ event.location }}</div>
-                    </div>
-                  </div>
-                  <div v-if="calendarEvents.length === 0" class="h-full flex items-center justify-center text-gray-600 text-sm italic">
-                    No remaining events for today.
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Bottom Bar: Quick Automation -->
-            <div class="h-48 grid grid-cols-4 gap-6">
-              <div v-for="node in automation.slice(0,4)" :key="node.id" 
-                   @click="toggleDevice(node)"
-                   class="glass-panel rounded-2xl p-6 flex flex-col justify-between cursor-pointer transition-all active:scale-95 group relative overflow-hidden"
-                   :class="node.state ? 'bg-emerald-500/10 border-emerald-500/30' : 'hover:bg-white/[0.03]'">
-                <div class="flex justify-between items-start">
-                  <div class="w-10 h-10 rounded-xl flex items-center justify-center text-xl transition-all"
-                       :class="node.state ? 'bg-emerald-500 text-black shadow-[0_0_20px_rgba(16,185,129,0.4)]' : 'bg-white/5 text-gray-400'">
-                    {{ node.icon }}
-                  </div>
-                  <div class="w-2 h-2 rounded-full" :class="node.state ? 'bg-emerald-500 animate-pulse' : 'bg-gray-700'"></div>
-                </div>
-                <div>
-                  <div class="text-sm font-black">{{ node.name }}</div>
-                  <div class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">{{ node.state ? 'Active' : 'Standby' }}</div>
-                </div>
-                <div class="absolute -right-4 -bottom-4 text-6xl opacity-[0.03] group-hover:opacity-[0.05] transition-opacity select-none font-black">{{ node.id }}</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- PAGE 2: FULL AUTOMATION GRID -->
-      <section class="flex-none w-screen h-full snap-start p-10 flex flex-col">
-        <header class="flex justify-between items-end mb-10">
-          <div>
-            <h2 class="text-5xl font-black tracking-tighter">NODES<span class="text-emerald-500">.</span></h2>
-            <p class="text-xs text-gray-500 font-bold tracking-[0.2em] uppercase">Control Matrix / {{ automation.length }} Connected</p>
+      <section class="flex-none w-full h-full snap-start p-6 sm:p-10 flex flex-col relative overflow-hidden">
+        <header class="flex justify-between items-start mb-6">
+          <div v-if="config.pageTitles">
+            <h2 class="text-4xl font-black tracking-tighter mb-1">{{ config.pageTitles[1] || 'DASHBOARD' }}<span class="text-emerald-500">.</span></h2>
+            <p class="text-[10px] text-gray-500 font-bold tracking-[0.2em] uppercase">Core Intelligence Stream</p>
           </div>
           <div class="flex gap-4">
-            <button @click="openEditMode" class="px-6 py-2 bg-white/5 hover:bg-white/10 rounded-full text-[10px] font-bold tracking-widest uppercase transition-all">Configure</button>
+            <div v-if="isDragging" class="px-3 py-1 bg-emerald-500 text-black text-[9px] font-black rounded-full animate-pulse uppercase">Rearranging</div>
+            <button @click="openEdit" class="edit-trigger">⚙️ DASHBOARD CONFIG</button>
           </div>
         </header>
 
-        <div class="flex-grow grid grid-cols-4 gap-6 overflow-y-auto no-scrollbar pr-4 pb-10">
-          <div v-for="node in automation" :key="node.id"
-               @click="toggleDevice(node)"
-               class="glass-panel p-8 rounded-3xl flex flex-col justify-between aspect-square cursor-pointer transition-all hover:bg-white/[0.03] group relative"
-               :class="node.state ? 'bg-emerald-500/10 border-emerald-500/30' : ''">
-            <div class="flex justify-between items-start">
-              <div class="w-14 h-14 rounded-2xl flex items-center justify-center text-3xl transition-all"
-                   :class="node.state ? 'bg-emerald-500 text-black' : 'bg-white/5 text-gray-500'">
-                {{ node.icon }}
-              </div>
-              <div class="flex flex-col items-end">
-                <div class="text-[10px] font-black text-gray-600 mb-1">0{{ node.id }}</div>
-                <div class="w-3 h-3 rounded-full" :class="node.state ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]' : 'bg-gray-800'"></div>
+        <div class="grid grid-cols-12 gap-8 flex-grow overflow-hidden">
+          <!-- Metrics Sidebar (Expanded scroll area) -->
+          <div class="col-span-4 flex flex-col gap-6 overflow-hidden">
+            <div class="flex-grow overflow-y-auto no-scrollbar pr-1">
+              <draggable v-model="allMetricsList" item-key="id" class="grid grid-cols-1 gap-4" @start="isDragging = true" @end="isDragging = false" :delay="500" :delay-on-touch-only="true">
+                <template #item="{ element: metric }">
+                  <div class="glass-panel p-5 rounded-2xl group transition-all hover:bg-white/[0.03] cursor-grab active:cursor-grabbing relative overflow-hidden">
+                    <div class="flex justify-between items-start mb-2">
+                      <span class="text-[9px] font-bold tracking-widest text-gray-500 uppercase">{{ metric.label }}</span>
+                      <div :class="`w-2 h-2 rounded-full bg-${metric.iconColor}-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]`"></div>
+                    </div>
+                    <div class="flex items-baseline gap-1">
+                      <span class="text-2xl font-black tabular-nums">{{ telemetry[metric.source] || '0' }}{{ metric.unit }}</span>
+                      <span class="text-[9px] font-bold text-gray-600 uppercase">{{ metric.suffix }}</span>
+                    </div>
+                  </div>
+                </template>
+              </draggable>
+            </div>
+
+            <div v-if="weatherData.temp !== null" class="glass-panel p-4 rounded-xl relative group mt-auto">
+              <div class="text-[9px] uppercase tracking-widest text-gray-500 mb-3 font-bold">Climate Overview</div>
+              <div class="grid grid-cols-3 gap-2 text-center">
+                <div class="flex flex-col">
+                  <span class="text-lg font-black">{{ weatherData.temp }}°{{ config.tempUnit }}</span>
+                  <span class="text-[8px] text-gray-500 uppercase font-bold">Temp</span>
+                </div>
+                <div class="flex flex-col">
+                  <span class="text-lg font-black text-blue-400">{{ weatherData.humidity }}%</span>
+                  <span class="text-[8px] text-gray-500 uppercase font-bold">Humid</span>
+                </div>
+                <div class="flex flex-col">
+                  <span class="text-lg font-black text-indigo-400">{{ weatherData.windSpeed }}</span>
+                  <span class="text-[8px] text-gray-500 uppercase font-bold">Wind</span>
+                </div>
               </div>
             </div>
-            <div>
-              <div class="text-2xl font-black mb-1">{{ node.name }}</div>
-              <div class="text-[10px] font-bold text-gray-500 uppercase tracking-[0.2em]">{{ node.state ? 'System Online' : 'Offline / Idle' }}</div>
+          </div>
+
+          <!-- Central Clock & Area -->
+          <div class="col-span-8 flex flex-col gap-6 overflow-hidden">
+            <div class="flex-grow glass-panel rounded-3xl relative overflow-hidden flex flex-col items-center justify-center p-8">
+              <canvas ref="clockCanvas" class="absolute inset-0 w-full h-full pointer-events-none opacity-40"></canvas>
+              
+              <div v-if="config.clockEngine === 'DIGITAL'" class="relative z-10 flex flex-col items-center text-center">
+                <div v-if="config.digitalStyle === 'Modern'" class="flex gap-4 items-center">
+                  <div class="clock-digit">{{ currentTime.h1 }}{{ currentTime.h2 }}</div>
+                  <div class="text-6xl font-black text-emerald-500/50">:</div>
+                  <div class="clock-digit">{{ currentTime.m1 }}{{ currentTime.m2 }}</div>
+                  <div class="text-4xl font-black text-white/20 tabular-nums ml-2 self-end mb-4">{{ currentTime.s1 }}{{ currentTime.s2 }}</div>
+                </div>
+                <div v-else-if="config.digitalStyle === 'Cyber'" class="text-center">
+                  <div class="text-[160px] font-black leading-none tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white to-white/5">{{ currentTime.h1 }}{{ currentTime.h2 }}:{{ currentTime.m1 }}{{ currentTime.m2 }}</div>
+                  <div class="text-3xl font-black text-emerald-500 opacity-80 mt-[-20px]">{{ currentTime.s1 }}{{ currentTime.s2 }}</div>
+                </div>
+                <div v-else class="flex gap-4 items-baseline">
+                  <div class="text-9xl font-black tracking-tighter leading-none">{{ currentTime.h1 }}{{ currentTime.h2 }}</div>
+                  <div class="text-5xl font-black text-emerald-500">{{ currentTime.m1 }}{{ currentTime.m2 }}</div>
+                  <div class="text-2xl font-bold text-gray-700 tabular-nums">{{ currentTime.s1 }}{{ currentTime.s2 }}</div>
+                </div>
+
+                <div class="mt-8 space-y-2 animate-fade-in">
+                  <div class="text-lg font-bold tracking-[0.15em] text-white/80 uppercase">{{ currentDate }}</div>
+                  <div class="flex items-center justify-center gap-2">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_10px_#10b981]"></span>
+                    <span class="text-xs font-black text-emerald-500 uppercase tracking-[0.4em]">{{ config.customLocation }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div v-else class="relative z-10 mt-auto mb-4 text-center">
+                <div class="text-lg font-bold tracking-[0.15em] text-white/80 uppercase">{{ currentDate }}</div>
+                <div class="text-xs font-black text-emerald-500 uppercase tracking-[0.4em] mt-1">{{ config.customLocation }}</div>
+              </div>
             </div>
-            <!-- Interactive Visual Feedback -->
-            <div v-if="node.state" class="absolute bottom-8 right-8 flex gap-1 items-end h-4">
-              <div v-for="i in 3" :key="i" class="w-1 bg-emerald-500/50 rounded-full animate-[wave-peak_1s_infinite]" :style="{ animationDelay: (i * 0.2) + 's' }"></div>
+
+            <!-- Draggable Quick Controls -->
+            <div class="h-32 sm:h-40 overflow-hidden">
+              <draggable v-model="automation" item-key="id" class="grid grid-cols-4 gap-4 h-full" @start="isDragging = true" @end="isDragging = false" :delay="500" :delay-on-touch-only="true">
+                <template #item="{ element: node }">
+                  <div @click.stop="toggleNode(node)" 
+                       class="node-card glass-panel rounded-2xl p-4 flex flex-col justify-between cursor-grab transition-all active:scale-95 group overflow-hidden" 
+                       :class="{ 'node-active': node.state }">
+                    <div class="w-10 h-10 rounded-xl flex items-center justify-center text-xl transition-all duration-500" 
+                         :class="node.state ? 'bg-emerald-500 text-black node-glow' : 'bg-white/5 text-gray-500'">
+                      {{ node.icon }}
+                    </div>
+                    <div>
+                      <div class="text-xs font-black truncate">{{ node.name }}</div>
+                      <div class="text-[8px] font-bold text-gray-500 uppercase tracking-widest">{{ node.state ? 'Online' : 'Standby' }}</div>
+                    </div>
+                  </div>
+                </template>
+              </draggable>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- PAGE 2: NODES MATRIX -->
+      <section class="flex-none w-full h-full snap-start p-6 sm:p-10 flex flex-col overflow-hidden">
+        <header class="flex justify-between items-start mb-10">
+          <div v-if="config.pageTitles">
+            <h2 class="text-5xl font-black tracking-tighter">{{ config.pageTitles[2] || 'NODES' }}<span class="text-emerald-500">.</span></h2>
+            <p class="text-xs text-gray-500 font-bold uppercase tracking-widest mt-2">{{ automation.length }} Connected Units</p>
+          </div>
+          <button @click="openEdit" class="edit-trigger">⚙️ MANAGE MATRIX</button>
+        </header>
+        <draggable v-model="automation" item-key="id" 
+                   class="grid grid-cols-4 gap-6 flex-grow overflow-y-auto no-scrollbar pb-24" 
+                   @start="isDragging = true" @end="isDragging = false" :delay="500" :delay-on-touch-only="true">
+          <template #item="{ element: node }">
+            <div @click.stop="toggleNode(node)" 
+                 class="node-card glass-panel p-6 rounded-3xl flex flex-col justify-between cursor-grab transition-all group overflow-hidden" 
+                 :class="[node.state ? 'node-active' : '', automation.length > 8 ? 'aspect-video' : 'aspect-square']">
+              <div class="flex justify-between items-start">
+                <div :class="['rounded-2xl flex items-center justify-center transition-all duration-500', automation.length > 8 ? 'w-12 h-12 text-3xl' : 'w-20 h-20 text-5xl', node.state ? 'bg-emerald-500 text-black node-glow' : 'bg-white/5 text-gray-500']">
+                  {{ node.icon }}
+                </div>
+                <div class="w-3 h-3 rounded-full" :class="node.state ? 'bg-emerald-500 shadow-[0_0_15px_#10b981]' : 'bg-gray-800'"></div>
+              </div>
+              <div class="mt-2">
+                <div :class="['font-black truncate', automation.length > 8 ? 'text-xl' : 'text-2xl']">{{ node.name }}</div>
+                <div class="text-[10px] text-gray-500 font-bold uppercase tracking-widest">ID: 0{{ node.id }}</div>
+              </div>
+            </div>
+          </template>
+        </draggable>
+      </section>
+
+      <!-- PAGE 3: ENVIRONMENT CENTER -->
+      <section class="flex-none w-full h-full snap-start p-6 sm:p-10 flex flex-col overflow-hidden">
+        <header class="flex justify-between items-start mb-6">
+          <h2 v-if="config.pageTitles" class="text-5xl font-black tracking-tighter">{{ config.pageTitles[3] || 'CLIMATE' }}<span class="text-blue-500">.</span></h2>
+          <button @click="openEdit" class="edit-trigger">⚙️ CLIMATE SETUP</button>
+        </header>
+        <div class="grid grid-cols-12 gap-8 h-full overflow-hidden pb-24">
+          <div class="col-span-8 flex flex-col gap-6">
+            <div class="glass-panel p-8 rounded-3xl flex-grow flex flex-col">
+              <h3 class="text-xs font-black tracking-widest text-blue-400 uppercase mb-6">Environment Data Hub</h3>
+              <div class="flex-grow flex flex-col gap-3">
+                <div v-for="i in 5" :key="i" class="flex justify-between items-center p-4 bg-white/[0.01] rounded-2xl border border-white/5">
+                  <span class="w-24 text-sm font-bold uppercase text-gray-500">Day {{ i+1 }}</span>
+                  <span class="text-2xl">🌤️</span>
+                  <span class="text-xl font-black tabular-nums">2{{ i+4 }}°</span>
+                  <div class="w-32 h-1.5 bg-white/5 rounded-full overflow-hidden"><div class="h-full bg-blue-500/50" :style="{ width: (40+i*10)+'%' }"></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-span-4 flex flex-col gap-6">
+            <div v-for="e in environmentalMetrics" :key="e.id" class="glass-panel p-6 rounded-3xl flex-grow flex flex-col items-center justify-center gap-2">
+              <span class="text-[10px] font-black uppercase text-gray-500 tracking-widest">{{ e.label }}</span>
+              <span class="text-5xl font-black" :class="`text-${e.color}-500`">{{ e.value }}{{ e.unit }}</span>
+              <span class="text-[10px] font-bold text-gray-700 uppercase tracking-widest">{{ e.status }}</span>
             </div>
           </div>
         </div>
       </section>
     </div>
 
-    <!-- UI Overlay Elements -->
-    <div class="fixed top-8 right-8 z-[100] flex gap-4 items-center">
-      <div v-if="isListening" class="px-4 py-2 bg-emerald-500 text-black text-[10px] font-black uppercase tracking-widest rounded-full animate-pulse flex items-center gap-2">
-        <span class="relative flex h-2 w-2">
-          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-black opacity-75"></span>
-          <span class="relative inline-flex rounded-full h-2 w-2 bg-black"></span>
-        </span>
-        Listening
-      </div>
-      <button @click="startVoiceRecognition" class="w-12 h-12 bg-white/5 hover:bg-white/10 backdrop-blur-xl border border-white/10 rounded-full flex items-center justify-center text-xl transition-all active:scale-90">
-        🎙️
-      </button>
-    </div>
+    <!-- Global Voice Button -->
+    <button @click="startVoice" class="fixed top-8 right-8 w-12 h-12 bg-white/5 hover:bg-emerald-500/20 backdrop-blur-3xl border border-white/10 rounded-full flex items-center justify-center text-xl transition-all z-[100] active:scale-90">
+      <span :class="isListening ? 'animate-pulse text-emerald-500' : 'text-white'">🎙️</span>
+    </button>
 
-    <!-- Bottom Navigation / Progress -->
-    <div class="fixed bottom-10 left-1/2 -translate-x-1/2 flex gap-4 z-[90]">
-      <div v-for="i in 2" :key="i" class="w-20 h-1 rounded-full transition-all duration-500" :class="currentPage === i ? 'bg-emerald-500' : 'bg-white/10'"></div>
-    </div>
-
-    <!-- Global Alert Toast -->
-    <Transition name="island">
-      <div v-if="alertMessage" class="fixed bottom-24 left-1/2 -translate-x-1/2 z-[100] px-8 py-3 bg-white text-black text-[11px] font-black tracking-widest uppercase rounded-full shadow-2xl flex items-center gap-3">
-        ⚡ {{ alertMessage }}
-      </div>
-    </Transition>
-
-    <!-- SETTINGS / CUSTOMIZER DRAWER -->
+    <!-- Settings Drawer -->
     <Transition name="drawer">
-      <div v-if="isEditMode" class="fixed inset-0 z-[200] flex justify-end" @click="handleGlobalClick">
-        <div class="edit-drawer w-[450px] h-full bg-[#080808]/95 backdrop-blur-3xl border-l border-white/10 p-12 flex flex-col shadow-[-50px_0_100px_rgba(0,0,0,0.5)]">
-          <header class="mb-12 flex justify-between items-center">
+      <div v-if="isEdit" class="fixed inset-0 z-[300] flex justify-end" @click="closeEdit">
+        <div class="drawer w-[480px] h-full bg-[#080808]/98 backdrop-blur-3xl border-l border-white/10 p-10 flex flex-col shadow-2xl overflow-hidden" @click.stop>
+          <header class="mb-10 flex justify-between items-center">
             <div>
-              <h3 class="text-3xl font-black tracking-tighter">SETTINGS</h3>
-              <p class="text-[10px] text-gray-500 font-bold tracking-[0.2em] uppercase">Tailor your interface</p>
+              <h3 class="text-3xl font-black uppercase tracking-tighter">CONTROL CENTER</h3>
+              <p class="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Page {{ currentPage }} Optimization</p>
             </div>
-            <button @click="isEditMode = false" class="text-2xl hover:rotate-90 transition-transform">✕</button>
+            <button @click="isEdit = false" class="text-3xl hover:rotate-90 transition-transform">✕</button>
           </header>
 
-          <div class="space-y-12 overflow-y-auto no-scrollbar pr-4">
-            <!-- Appearance Section -->
-            <div class="space-y-6">
-              <label class="text-[10px] font-black tracking-[0.3em] text-emerald-500 uppercase block">Engine Architecture</label>
-              <div class="grid grid-cols-2 gap-4">
-                <button v-for="mode in ['DIGITAL', 'ANALOG']" :key="mode" 
-                        @click="config.clockEngine = mode"
-                        class="p-4 rounded-xl border text-[11px] font-bold tracking-widest transition-all"
-                        :class="config.clockEngine === mode ? 'bg-emerald-500 text-black border-emerald-500' : 'bg-white/5 border-white/5 text-gray-400'">
-                  {{ mode }}
-                </button>
-              </div>
-            </div>
-
-            <!-- Dynamic Settings -->
-            <div class="space-y-6">
-              <label class="text-[10px] font-black tracking-[0.3em] text-emerald-500 uppercase block">Analog Aesthetics</label>
-              <div class="grid grid-cols-2 gap-4">
-                <button v-for="style in ['Minimal', 'Chronograph', 'Neon']" :key="style" 
-                        @click="config.analogStyle = style"
-                        class="p-4 rounded-xl border text-[11px] font-bold tracking-widest transition-all"
-                        :class="config.analogStyle === style ? 'bg-emerald-500 text-black border-emerald-500' : 'bg-white/5 border-white/5 text-gray-400'">
-                  {{ style }}
-                </button>
-              </div>
-            </div>
-
-            <div class="space-y-6">
-              <label class="text-[10px] font-black tracking-[0.3em] text-emerald-500 uppercase block">Weather Localization</label>
-              <input v-model="config.customLocation" placeholder="Enter City..." 
-                     class="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-sm font-bold focus:outline-none focus:border-emerald-500 transition-colors">
-              <p class="text-[9px] text-gray-600 leading-relaxed font-bold">Location data is used for local weather polling and regional telemetry sync.</p>
-            </div>
-
+          <div class="flex-grow space-y-12 overflow-y-auto no-scrollbar pr-2 pb-10">
+            <!-- Page Title -->
             <div class="space-y-4">
-              <div class="flex justify-between items-center">
-                <span class="text-xs font-bold">Analog Sweep Motion</span>
-                <button @click="config.analogSweep = !config.analogSweep" 
-                        class="w-12 h-6 rounded-full relative transition-colors"
-                        :class="config.analogSweep ? 'bg-emerald-500' : 'bg-gray-800'">
-                  <div class="absolute top-1 w-4 h-4 bg-white rounded-full transition-all" :class="config.analogSweep ? 'left-7' : 'left-1'"></div>
-                </button>
+              <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Page Display Name</label>
+              <input v-model="config.pageTitles[currentPage]" class="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-sm font-bold focus:border-emerald-500 outline-none transition-colors">
+            </div>
+
+            <!-- Page 1 Specifics (Expanded Metrics Manager) -->
+            <div v-if="currentPage === 1" class="space-y-10 animate-fade-in">
+              <div class="space-y-4">
+                <label class="text-[10px] font-black text-emerald-500 uppercase tracking-widest flex justify-between items-center">
+                  Telemetry Widgets
+                  <div class="flex gap-2">
+                    <button @click="removeMetric" class="w-8 h-8 rounded-lg bg-red-500/20 text-red-500 flex items-center justify-center font-black">-</button>
+                    <span class="w-8 text-center text-white">{{ allMetricsList.length }}</span>
+                    <button @click="addMetric" class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-500 flex items-center justify-center font-black">+</button>
+                  </div>
+                </label>
               </div>
-              <div class="flex justify-between items-center">
-                <span class="text-xs font-bold">24-Hour Format</span>
-                <button @click="config.is24Hour = !config.is24Hour" 
-                        class="w-12 h-6 rounded-full relative transition-colors"
-                        :class="config.is24Hour ? 'bg-emerald-500' : 'bg-gray-800'">
-                  <div class="absolute top-1 w-4 h-4 bg-white rounded-full transition-all" :class="config.is24Hour ? 'left-7' : 'left-1'"></div>
-                </button>
+
+              <div class="space-y-4">
+                <label class="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Metric Source & Styling</label>
+                <div class="space-y-3">
+                  <div v-for="metric in allMetricsList" :key="metric.id" class="p-4 bg-white/5 rounded-2xl border border-white/5 space-y-3">
+                    <div class="flex gap-3">
+                      <select v-model="metric.source" class="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-[10px] font-bold outline-none text-emerald-500">
+                        <option value="battery">POWER</option>
+                        <option value="temp">CORE TEMP</option>
+                        <option value="cpu">CPU LOAD</option>
+                        <option value="ram">RAM USE</option>
+                        <option value="storage">STORAGE</option>
+                        <option value="gpu">GPU LOAD</option>
+                        <option value="net">NETWORK</option>
+                      </select>
+                      <input v-model="metric.label" class="flex-grow bg-white/5 border border-white/10 rounded-lg px-3 py-1 text-xs font-bold outline-none focus:border-emerald-500">
+                    </div>
+                    <div class="flex gap-2">
+                      <button v-for="color in ['emerald', 'amber', 'cyan', 'indigo', 'rose']" :key="color" @click="metric.iconColor = color" class="w-6 h-6 rounded-full border border-white/10 transition-all" :class="[`bg-${color}-500`, metric.iconColor === color ? 'scale-125 border-white shadow-xl' : 'opacity-40']"></button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="space-y-4">
+                <label class="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Geo-Detection</label>
+                <div class="relative">
+                  <input v-model="config.customLocation" placeholder="Detecting..." class="w-full bg-white/5 border border-white/10 rounded-xl p-4 pr-12 text-sm font-bold focus:border-emerald-500 outline-none transition-colors">
+                  <button @click="autoDetectLocation" class="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-lg bg-white/5 hover:bg-emerald-500/20 text-emerald-500 flex items-center justify-center transition-all">📍</button>
+                </div>
               </div>
             </div>
 
-            <div class="pt-8 mt-12 border-t border-white/5">
-              <button @click="isEditMode = false; showAlert('Config Saved Locally')" 
-                      class="w-full py-4 bg-emerald-500 text-black font-black text-[12px] tracking-[0.3em] uppercase rounded-xl shadow-[0_20px_40px_rgba(16,185,129,0.3)] transition-all active:scale-95">
-                Commit Changes
-              </button>
+            <!-- Page 2 Specifics -->
+            <div v-if="currentPage === 2" class="space-y-10 animate-fade-in">
+              <div class="space-y-4">
+                <label class="text-[10px] font-black text-emerald-500 uppercase tracking-widest flex justify-between items-center">
+                  Matrix Grid Capacity
+                  <div class="flex gap-2">
+                    <button @click="removeNode" class="w-8 h-8 rounded-lg bg-red-500/20 text-red-500 flex items-center justify-center font-black">-</button>
+                    <span class="w-8 text-center text-white">{{ automation.length }}</span>
+                    <button @click="addNode" class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-500 flex items-center justify-center font-black">+</button>
+                  </div>
+                </label>
+              </div>
+              <div class="space-y-6">
+                <div v-for="node in automation" :key="node.id" class="p-4 bg-white/5 rounded-2xl border border-white/5 space-y-4">
+                  <div class="flex gap-4">
+                    <div class="relative group">
+                      <button class="w-14 h-14 rounded-2xl bg-white/5 text-3xl flex items-center justify-center hover:bg-emerald-500/20 transition-all">{{ node.icon }}</button>
+                      <div class="absolute top-0 left-0 w-max bg-black/95 backdrop-blur-3xl border border-white/10 p-3 rounded-2xl grid grid-cols-4 gap-2 opacity-0 group-hover:opacity-100 transition-all z-[50] shadow-2xl pointer-events-none group-hover:pointer-events-auto scale-90 group-hover:scale-100">
+                        <button v-for="emoji in ['💡','🌪️','🔒','🖥️','❄️','📷','🚗','💧','🚪','🔈','🌡️','📺','📻','🖨️','⌨️','🖱️']" :key="emoji" @click="node.icon = emoji" class="w-10 h-10 hover:bg-emerald-500/20 rounded-xl flex items-center justify-center text-xl transition-all">{{ emoji }}</button>
+                      </div>
+                    </div>
+                    <div class="flex-grow space-y-2">
+                      <input v-model="node.name" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-xs font-bold outline-none focus:border-emerald-500">
+                      <div class="text-[9px] text-gray-600 font-bold uppercase tracking-widest">Source: 0x{{ node.id.toString(16).slice(-4) }}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
+          <button @click="isEdit = false" class="mt-auto w-full py-5 bg-emerald-500 text-black font-black text-[11px] tracking-[0.3em] uppercase rounded-2xl active:scale-95 transition-all shadow-[0_20px_50px_rgba(16,185,129,0.3)]">Deploy Configuration</button>
         </div>
       </div>
     </Transition>
@@ -287,372 +300,116 @@
 
 <script setup>
 import { ref, reactive, onMounted, onUnmounted, watch, computed } from 'vue'
+import draggable from 'vuedraggable'
 
-// --- STATE MANAGEMENT ---
-const config = reactive(JSON.parse(localStorage.getItem('smart_config')) || {
-  clockEngine: 'DIGITAL',
-  analogStyle: 'Neon',
-  analogSweep: true,
-  is24Hour: true,
-  tempUnit: 'C',
-  customLocation: 'Loading...',
-  theme: 'Midnight'
-})
+const DEFAULT_CONFIG = {
+  clockEngine: 'DIGITAL', digitalStyle: 'Modern', analogStyle: 'Neon', analogSweep: true, 
+  is24Hour: true, tempUnit: 'C', customLocation: 'Home',
+  pageTitles: { 1: 'DASHBOARD', 2: 'NODES', 3: 'CLIMATE' }
+}
+
+const savedConfig = JSON.parse(localStorage.getItem('smart_config')) || {}
+const config = reactive({ ...DEFAULT_CONFIG, ...savedConfig })
+if (!config.pageTitles) config.pageTitles = DEFAULT_CONFIG.pageTitles
 
 const automation = ref(JSON.parse(localStorage.getItem('smart_nodes')) || [
-  { id: 1, name: 'Main Lights', state: false, icon: '💡' },
-  { id: 2, name: 'Air Purifier', state: true, icon: '🌪️' },
-  { id: 3, name: 'Door Lock', state: false, icon: '🔒' },
-  { id: 4, name: 'Media Server', state: true, icon: '🖥️' },
-  { id: 5, name: 'HVAC Unit', state: false, icon: '❄️' },
-  { id: 6, name: 'Security Cam', state: true, icon: '📷' },
-  { id: 7, name: 'Garage Gate', state: false, icon: '🚗' },
-  { id: 8, name: 'Garden Mist', state: false, icon: '💧' }
+  { id: 1, name: 'Main Lights', state: false, icon: '💡' }, { id: 2, name: 'Air Purifier', state: true, icon: '🌪️' },
+  { id: 3, name: 'Door Lock', state: false, icon: '🔒' }, { id: 4, name: 'Media Server', state: true, icon: '🖥️' }
 ])
 
-// Persistent storage watchers
-watch(config, (val) => localStorage.setItem('smart_config', JSON.stringify(val)), { deep: true })
-watch(automation, (val) => localStorage.setItem('smart_nodes', JSON.stringify(val)), { deep: true })
-
-// --- UI STATE ---
-const viewport = ref(null)
-const clockStack = ref(null)
-const clockCanvas = ref(null)
-const alertMessage = ref('')
-const persistentAlert = ref('')
-const isListening = ref(false)
-const isEditMode = ref(false)
-const drawerOpenTime = ref(0)
-const currentPage = ref(1)
-const isChangingClock = ref(false)
-
-const telemetry = ref({
-  battery: 100,
-  temp: 34,
-  cpu: 12,
-  ram: 4.2,
-  storage: '124',
-  weather: 'Sunny'
-})
-
-const weatherData = ref({
-  temp: null,
-  aqi: 24,
-  uv: 2,
-  humidity: 45,
-  windSpeed: 12,
-  precipitation: 0
-})
-
-const calendarEvents = ref([
-  { time: '14:00', title: 'Product Design Sync', location: 'Meeting Room A' },
-  { time: '16:30', title: 'Smart Node Calibration', location: 'Lab 04' },
-  { time: '19:00', title: 'System Backup Cycle', location: 'Cloud Edge' }
+const allMetricsList = ref(JSON.parse(localStorage.getItem('smart_metrics_order')) || [
+  { id: 1, source: 'battery', label: 'Power', unit: '%', suffix: 'Batt', iconColor: 'emerald' },
+  { id: 2, source: 'temp', label: 'Core', unit: '°', suffix: 'Temp', iconColor: 'amber' },
+  { id: 3, source: 'cpu', label: 'Load', unit: '%', suffix: 'CPU', iconColor: 'cyan' },
+  { id: 4, source: 'ram', label: 'Mem', unit: 'GB', suffix: 'RAM', iconColor: 'indigo' }
 ])
 
-const currentTime = reactive({ h1: '0', h2: '0', m1: '0', m2: '0', s: '00' })
-const currentDate = ref('')
+const telemetry = ref({ battery: 100, temp: 34, cpu: 12, ram: 4.2, storage: 64, gpu: 28, net: 150 })
+const weatherData = ref({ temp: null, aqi: 24, uv: 2, humidity: 45, windSpeed: 12 })
+const environmentalMetrics = computed(() => [
+  { id: 'aqi', label: 'Air Quality', value: weatherData.value.aqi, unit: '', status: 'Optimal', color: 'emerald' },
+  { id: 'uv', label: 'UV Index', value: weatherData.value.uv, unit: '', status: 'Low', color: 'amber' },
+  { id: 'humidity', label: 'Humidity', value: weatherData.value.humidity, unit: '%', status: 'Healthy', color: 'blue' }
+])
 
-const accentColor = computed(() => {
-  if (config.analogStyle === 'Neon') return '#10b981'
-  if (config.analogStyle === 'Chronograph') return '#3b82f6'
-  return '#ffffff'
-})
+watch(config, (v) => localStorage.setItem('smart_config', JSON.stringify(v)), { deep: true })
+watch(automation, (v) => localStorage.setItem('smart_nodes', JSON.stringify(v)), { deep: true })
+watch(allMetricsList, (v) => localStorage.setItem('smart_metrics_order', JSON.stringify(v)), { deep: true })
 
-// --- CORE ENGINES ---
+const viewport = ref(null), clockCanvas = ref(null), isListening = ref(false), isEdit = ref(false), currentPage = ref(1), isDragging = ref(false)
+const currentTime = reactive({ h1: '0', h2: '0', m1: '0', m2: '0', s1: '0', s2: '0' }), currentDate = ref('')
 
-function updateDate() {
-  const now = new Date()
-  const options = { weekday: 'long', month: 'long', day: 'numeric' }
-  currentDate.value = now.toLocaleDateString('en-US', options).toUpperCase()
+function updateTime() {
+  const n = new Date(); let h = n.getHours(); if (!config.is24Hour) h = h % 12 || 12
+  const m = n.getMinutes(), s = n.getSeconds(), hS = h.toString().padStart(2, '0'), mS = m.toString().padStart(2, '0'), sS = s.toString().padStart(2, '0')
+  currentTime.h1 = hS[0]; currentTime.h2 = hS[1]; currentTime.m1 = mS[0]; currentTime.m2 = mS[1]; currentTime.s1 = sS[0]; currentTime.s2 = sS[1]
+  currentDate.value = n.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }).toUpperCase()
 }
 
-// Logic for anti-jitter digital clock
-function updateDigitalClock() {
-  const now = new Date()
-  let h = now.getHours()
-  if (!config.is24Hour) h = h % 12 || 12
-  const m = now.getMinutes()
-  const s = now.getSeconds()
+function scrollToPage(p) { viewport.value?.scrollTo({ left: (p-1) * window.innerWidth, behavior: 'smooth' }); currentPage.value = p }
+function handleScroll() { if (!viewport.value) return; const p = Math.round(viewport.value.scrollLeft / window.innerWidth) + 1; currentPage.value = p }
 
-  const hStr = h.toString().padStart(2, '0')
-  const mStr = m.toString().padStart(2, '0')
-
-  currentTime.h1 = hStr[0]
-  currentTime.h2 = hStr[1]
-  currentTime.m1 = mStr[0]
-  currentTime.m2 = mStr[1]
-  currentTime.s = s.toString().padStart(2, '0')
-}
-
-let clockAnimFrame = null
-function renderClock() {
-  updateDigitalClock()
-  
-  if (!clockCanvas.value) {
-    clockAnimFrame = requestAnimationFrame(renderClock)
-    return
+let clockAnim = null
+function render() {
+  updateTime()
+  if (clockCanvas.value && config.clockEngine === 'ANALOG') {
+    const c = clockCanvas.value, ctx = c.getContext('2d')
+    c.width = c.offsetWidth * devicePixelRatio; c.height = c.offsetHeight * devicePixelRatio
+    ctx.scale(devicePixelRatio, devicePixelRatio); ctx.clearRect(0,0,c.offsetWidth,c.offsetHeight)
+    const cx = c.offsetWidth/2, cy = c.offsetHeight/2, r = Math.min(cx, cy) - 40
+    ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.strokeStyle = 'rgba(255,255,255,0.05)'; ctx.lineWidth = 1; ctx.stroke()
+    const n = new Date(), hr = n.getHours()%12, min = n.getMinutes(), sec = n.getSeconds()
+    const sA = (sec * Math.PI)/30 - Math.PI/2, mA = (min * Math.PI)/30 - Math.PI/2, hA = (hr * Math.PI)/6 - Math.PI/2
+    const dH = (a, l, w, cl) => { ctx.beginPath(); ctx.lineCap='round'; ctx.moveTo(cx,cy); ctx.lineTo(cx+Math.cos(a)*l, cy+Math.sin(a)*l); ctx.strokeStyle = cl; ctx.lineWidth = w; ctx.stroke() }
+    dH(hA, r*0.5, 6, 'white'); dH(mA, r*0.75, 4, 'white'); dH(sA, r*0.85, 2, '#10b981')
   }
-
-  const canvas = clockCanvas.value
-  const ctx = canvas.getContext('2d')
-  const width = canvas.width = canvas.offsetWidth * window.devicePixelRatio
-  const height = canvas.height = canvas.offsetHeight * window.devicePixelRatio
-  ctx.scale(window.devicePixelRatio, window.devicePixelRatio)
-
-  const now = new Date()
-  ctx.clearRect(0, 0, canvas.offsetWidth, canvas.offsetHeight)
-
-  if (config.clockEngine === 'ANALOG') {
-    const cx = canvas.offsetWidth / 2
-    const cy = canvas.offsetHeight / 2 - 20
-    const r = 160
-
-    // Dial
-    ctx.beginPath()
-    ctx.arc(cx, cy, r, 0, Math.PI * 2)
-    ctx.strokeStyle = config.analogStyle === 'Neon' ? accentColor.value : 'rgba(255,255,255,0.05)'
-    ctx.lineWidth = 4
-    if (config.analogStyle === 'Neon') {
-      ctx.shadowColor = accentColor.value
-      ctx.shadowBlur = 20
-    }
-    ctx.stroke()
-    ctx.shadowBlur = 0
-
-    // Ticks
-    if (config.analogStyle !== 'Minimal') {
-      for (let i = 0; i < 60; i++) {
-        const angle = (i * Math.PI) / 30
-        const isMajor = i % 5 === 0
-        const innerR = isMajor ? r - 20 : r - 10
-        ctx.beginPath()
-        ctx.moveTo(cx + Math.cos(angle) * innerR, cy + Math.sin(angle) * innerR)
-        ctx.lineTo(cx + Math.cos(angle) * r, cy + Math.sin(angle) * r)
-        ctx.strokeStyle = isMajor ? accentColor.value : 'rgba(255,255,255,0.2)'
-        ctx.lineWidth = isMajor ? 3 : 1
-        ctx.stroke()
-      }
-    }
-
-    // Hands
-    const h = now.getHours() % 12
-    const m = now.getMinutes()
-    const s = now.getSeconds()
-    const ms = now.getMilliseconds()
-    const sweep = config.analogSweep ? (ms / 1000) : 0
-
-    const sAng = ((s + sweep) * Math.PI) / 30 - Math.PI / 2
-    const mAng = ((m + s / 60) * Math.PI) / 30 - Math.PI / 2
-    const hAng = ((h + m / 60) * Math.PI) / 6 - Math.PI / 2
-
-    const drawHand = (angle, len, wide, color, glow = false) => {
-      ctx.beginPath()
-      ctx.lineCap = 'round'
-      ctx.moveTo(cx, cy)
-      ctx.lineTo(cx + Math.cos(angle) * len, cy + Math.sin(angle) * len)
-      ctx.strokeStyle = color
-      ctx.lineWidth = wide
-      if (glow) {
-        ctx.shadowColor = color
-        ctx.shadowBlur = 15
-      }
-      ctx.stroke()
-      ctx.shadowBlur = 0
-    }
-
-    drawHand(hAng, r * 0.5, 8, 'white')
-    drawHand(mAng, r * 0.75, 5, 'white')
-    drawHand(sAng, r * 0.85, 2, accentColor.value, config.analogStyle === 'Neon')
-
-    ctx.beginPath()
-    ctx.arc(cx, cy, 6, 0, Math.PI * 2)
-    ctx.fillStyle = accentColor.value
-    ctx.fill()
-  }
-
-  clockAnimFrame = requestAnimationFrame(renderClock)
+  clockAnim = requestAnimationFrame(render)
 }
 
-// --- WEATHER & LOCATION ---
-async function fetchWeatherByCoords(lat, lon) {
-  try {
-    const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&hourly=relativehumidity_2m,windspeed_10m`)
-    const data = await res.json()
-    if (data.current_weather) {
-      weatherData.value.temp = data.current_weather.temperature
-      weatherData.value.windSpeed = data.current_weather.windspeed
-      if (data.hourly) {
-        const hourIdx = new Date().getHours()
-        weatherData.value.humidity = data.hourly.relativehumidity_2m[hourIdx]
-      }
-      telemetry.value.weather = `Temp: ${data.current_weather.temperature}°`
-    }
-  } catch (e) { console.log('Weather Fetch Error', e) }
+function addNode() { if (automation.value.length < 12) { const newId = Date.now(); automation.value.push({ id: newId, name: `Node 0x${newId.toString(16).slice(-4)}`, state: false, icon: '💡' }) } }
+function removeNode() { if (automation.value.length > 1) { automation.value.pop() } }
+
+function addMetric() { if (allMetricsList.value.length < 8) { const mSources = { battery: ['Power', 'Batt', '%', 'emerald'], temp: ['Core', 'Temp', '°', 'amber'], cpu: ['Load', 'CPU', '%', 'cyan'], ram: ['Mem', 'RAM', 'GB', 'indigo'], storage: ['Disk', 'SSD', 'GB', 'rose'], gpu: ['Video', 'GPU', '%', 'amber'], net: ['Link', 'NET', 'Mb', 'cyan'] }; const source = 'storage'; const [l, s, u, c] = mSources[source]; allMetricsList.value.push({ id: Date.now(), source, label: l, suffix: s, unit: u, iconColor: c }) } }
+function removeMetric() { if (allMetricsList.value.length > 1) { allMetricsList.value.pop() } }
+
+function toggleNode(n) { if (isDragging.value) return; n.state = !n.state; if(ws?.readyState === 1) ws.send(JSON.stringify({ type: 'TOGGLE_DEVICE', id: n.id, state: n.state })) }
+function openEdit() { isEdit.value = true }
+function closeEdit(e) { if(e.target === e.currentTarget) isEdit.value = false }
+
+async function autoDetectLocation() {
+  const gIP = async () => { try { const r = await fetch('https://ipapi.co/json/'); const d = await r.json(); if(d.latitude) { await fetchWeather(d.latitude, d.longitude); config.customLocation = d.city || 'Home' } } catch(e) {} }
+  if(navigator.geolocation) { navigator.geolocation.getCurrentPosition(async (p) => { await fetchWeather(p.coords.latitude, p.coords.longitude); try { const r = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${p.coords.latitude}&lon=${p.coords.longitude}&format=json`); const d = await r.json(); config.customLocation = d.address?.city || d.address?.town || 'Home' } catch(e) {} }, () => gIP(), { timeout: 10000 }) } else gIP()
 }
 
-async function refreshWeather(silent = false) {
-  if (!config.customLocation || config.customLocation === 'Loading...') return
-  try {
-    const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(config.customLocation)}&count=1`)
-    const geoData = await geoRes.json()
-    if (geoData.results && geoData.results.length > 0) {
-      const loc = geoData.results[0]
-      await fetchWeatherByCoords(loc.latitude, loc.longitude)
-      if (!silent) showAlert('Weather Updated')
-    }
-  } catch(err) { if (!silent) showAlert('Refresh Failed') }
-}
+function startVoice() { const SR = window.SpeechRecognition || window.webkitSpeechRecognition; if(!SR) return; const r = new SR(); r.onstart = () => isListening.value = true; r.onresult = (e) => { const c = e.results[0][0].transcript.toLowerCase(); if(ws?.readyState === 1) ws.send(JSON.stringify({ type: 'VOICE_COMMAND', command: c })) }; r.onend = () => isListening.value = false; r.start() }
 
-let weatherTimer = null
-watch(() => config.customLocation, (newVal) => {
-  if(!newVal || newVal === 'Loading...') return
-  clearTimeout(weatherTimer)
-  weatherTimer = setTimeout(refreshWeather, 1000)
-})
-
-// --- SYSTEM UTILS ---
-function formatMetricValue(val, metricId) {
-  if (val === null) return '--'
-  return val
-}
-
-function showAlert(msg) {
-  alertMessage.value = msg
-  setTimeout(() => { alertMessage.value = '' }, 3000)
-}
-
-function openEditMode() {
-  isEditMode.value = true
-  drawerOpenTime.value = Date.now()
-}
-
-function handleGlobalClick(e) {
-  if (isEditMode.value && (Date.now() - drawerOpenTime.value > 500)) {
-    const drawer = document.querySelector('.edit-drawer')
-    if (drawer && !drawer.contains(e.target)) isEditMode.value = false
-  }
-}
-
-let globalHoldTimer = null
-function startGlobalHold(target) {
-  globalHoldTimer = setTimeout(openEditMode, 1000)
-}
-function endGlobalHold() { clearTimeout(globalHoldTimer) }
-
-function handleKeydown(e) {
-  if (isEditMode.value) return
-  const w = window.innerWidth
-  if (e.key === 'ArrowRight') viewport.value?.scrollBy({ left: w, behavior: 'smooth' })
-  if (e.key === 'ArrowLeft') viewport.value?.scrollBy({ left: -w, behavior: 'smooth' })
-}
-
-// --- WEBSOCKETS (MOCK/LOCAL) ---
 let ws = null
-function connectWebSocket() {
-  const host = window.location.hostname
-  const isLocal = host === 'localhost' || host === '127.0.0.1' || /^192\.168\./.test(host)
-  if (!isLocal) return
+onMounted(() => {
+  render()
+  const h = window.location.hostname; if(h === 'localhost' || /^192\.168\./.test(h)) { ws = new WebSocket(`ws://${h}:3333/api/live-stream`); ws.onmessage = (e) => { try { const d = JSON.parse(e.data); if(d.type === 'SYNC_STATE') telemetry.value = { ...telemetry.value, ...d.payload.telemetry } } catch(err) {} } }
+})
+onUnmounted(() => { cancelAnimationFrame(clockAnim); ws?.close() })
 
+async function fetchWeather(lat, lon) {
   try {
-    ws = new WebSocket(`ws://${host}:3333/api/live-stream`)
-    ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data)
-        if (data.type === 'SYNC_STATE') telemetry.value = { ...telemetry.value, ...data.payload.telemetry }
-      } catch(e) {}
-    }
-    ws.onclose = () => setTimeout(connectWebSocket, 5000)
+    const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&hourly=relativehumidity_2m`)
+    const d = await r.json(); if (d.current_weather) { weatherData.value.temp = d.current_weather.temperature; weatherData.value.windSpeed = d.current_weather.windspeed; weatherData.value.humidity = d.hourly?.relativehumidity_2m[new Date().getHours()] || 45 }
   } catch(e) {}
 }
-
-function toggleDevice(device) {
-  device.state = !device.state
-  if (ws && ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({ type: 'TOGGLE_DEVICE', id: device.id, state: device.state }))
-  }
-}
-
-function startVoiceRecognition() {
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
-  if (!SpeechRecognition) { showAlert('Voice Not Supported'); return }
-  const recognition = new SpeechRecognition()
-  recognition.onstart = () => { isListening.value = true }
-  recognition.onresult = (e) => {
-    const cmd = e.results[0][0].transcript.toLowerCase()
-    showAlert(`CMD: ${cmd}`)
-    if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'VOICE_COMMAND', command: cmd }))
-  }
-  recognition.onend = () => { isListening.value = false }
-  recognition.start()
-}
-
-let autoRefreshInterval = null
-
-onMounted(() => {
-  window.addEventListener('keydown', handleKeydown)
-  updateDate()
-  renderClock()
-  connectWebSocket()
-
-  // --- ROBUST LOCATION ENGINE ---
-  const getIPLoc = async () => {
-    try {
-      const res = await fetch('https://ipapi.co/json/')
-      const data = await res.json()
-      if (data.latitude && data.longitude) {
-        await fetchWeatherByCoords(data.latitude, data.longitude)
-        config.customLocation = data.city || 'Home'
-      }
-    } catch(e) {}
-  }
-
-  if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const { latitude: lat, longitude: lon } = pos.coords
-        await fetchWeatherByCoords(lat, lon)
-        try {
-          const r = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`)
-          const d = await r.json()
-          config.customLocation = d.address?.city || d.address?.town || 'Home'
-        } catch(e) {}
-      },
-      () => getIPLoc(),
-      { timeout: 10000 }
-    )
-  } else { getIPLoc() }
-
-  autoRefreshInterval = setInterval(() => refreshWeather(true), 60000)
-})
-
-onUnmounted(() => {
-  window.removeEventListener('keydown', handleKeydown)
-  if (clockAnimFrame) cancelAnimationFrame(clockAnimFrame)
-  if (ws) ws.close()
-  if (autoRefreshInterval) clearInterval(autoRefreshInterval)
-})
 </script>
 
 <style>
-.animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
-@keyframes fadeIn { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
-@keyframes wave-peak { 0%, 100% { height: 10%; } 50% { height: 100%; } }
-
-.clock-digit {
-  @apply w-[1.2ch] h-[1.5ch] bg-white/5 border border-white/10 rounded-xl flex items-center justify-center text-6xl sm:text-8xl font-black tabular-nums transition-all duration-300;
-}
-
-.glass-panel {
-  @apply bg-white/[0.02] backdrop-blur-2xl border border-white/5 shadow-2xl;
-}
-
+.node-card { @apply transition-all duration-500 border border-white/5; }
+.node-active { @apply bg-emerald-500/[0.12] border-emerald-500/40; box-shadow: 0 10px 40px -10px rgba(16, 185, 129, 0.25); transform: translateY(-2px); }
+.node-glow { filter: drop-shadow(0 0 12px rgba(16, 185, 129, 0.8)); animation: glow-pulse 2s infinite alternate; }
+@keyframes glow-pulse { from { filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.6)); } to { filter: drop-shadow(0 0 18px rgba(16, 185, 129, 1)); } }
+.edit-trigger { @apply px-4 py-2 bg-white/5 hover:bg-white/10 rounded-full text-[9px] font-black tracking-widest uppercase transition-all border border-white/5; }
+.clock-digit { @apply bg-white/[0.03] border border-white/10 rounded-2xl px-6 py-4 text-8xl font-black tabular-nums transition-all shadow-[inset_0_2px_10px_rgba(255,255,255,0.02)]; }
+.glass-panel { @apply bg-white/[0.02] backdrop-blur-3xl border border-white/5 shadow-2xl; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
-.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-
-.island-enter-active, .island-leave-active { transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
-.island-enter-from, .island-leave-to { opacity: 0; transform: translate(-50%, -20px) scale(0.9); }
-
 .drawer-enter-active, .drawer-leave-active { transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
 .drawer-enter-from, .drawer-leave-to { transform: translateX(100%); }
+.animate-fade-in { animation: fade-in 0.6s ease-out forwards; }
+@keyframes fade-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.sortable-ghost { opacity: 0.2; }
 </style>
