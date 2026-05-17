@@ -1,50 +1,42 @@
 <template>
-  <div class="h-screen bg-[#020202] text-white font-['Inter'] overflow-hidden selection:bg-emerald-500/30 p-2 sm:p-4 border-[1px] border-white/5 box-border flex flex-col">
+  <div class="h-screen bg-[#020202] text-white font-['Inter'] overflow-hidden selection:bg-emerald-500/30 p-2 sm:p-4 border-[1px] border-white/5 box-border flex flex-col" :style="{ zoom: config.zoomLevel ? config.zoomLevel / 100 : 1 }">
     <!-- Atmosphere -->
     <div class="fixed inset-0 pointer-events-none overflow-hidden">
       <div class="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] bg-emerald-500/10 rounded-full blur-[120px] animate-pulse"></div>
       <div class="absolute -bottom-[10%] -right-[10%] w-[40%] h-[40%] bg-blue-500/10 rounded-full blur-[120px] animate-pulse" style="animation-delay: 2s"></div>
     </div>
 
-    <!-- Navigation Island -->
-    <div class="fixed bottom-8 left-1/2 -translate-x-1/2 flex gap-3 z-[100] px-6 py-2 bg-white/5 backdrop-blur-2xl rounded-full border border-white/10 shadow-2xl transition-all hover:border-emerald-500/30 group">
-      <div v-for="i in 3" :key="i" 
-           @click="scrollToPage(i)"
-           class="w-12 h-1.5 rounded-full transition-all duration-500 cursor-pointer" 
-           :class="currentPage === i ? 'bg-emerald-500 w-16 shadow-[0_0_15px_rgba(16,185,129,0.5)]' : 'bg-white/10 hover:bg-white/20'">
-      </div>
-    </div>
+    <!-- Navigation Island Removed -->
 
     <!-- Viewport -->
     <div ref="viewport" class="relative flex-grow flex overflow-x-auto snap-x snap-mandatory no-scrollbar scroll-smooth" @scroll="handleScroll">
       
       <!-- PAGE 1: TELEMETRY & SYSTEM -->
-      <section class="flex-none w-full h-full snap-start p-6 sm:p-10 flex flex-col relative overflow-hidden">
-        <header class="flex justify-between items-start mb-6">
-          <div v-if="config.pageTitles">
-            <h2 class="text-4xl font-black tracking-tighter mb-1">{{ config.pageTitles[1] || 'DASHBOARD' }}<span class="text-emerald-500">.</span></h2>
-            <p class="text-[10px] text-gray-500 font-bold tracking-[0.2em] uppercase">Core Intelligence Stream</p>
-          </div>
-          <div class="flex gap-4">
-            <div v-if="isDragging" class="px-3 py-1 bg-emerald-500 text-black text-[9px] font-black rounded-full animate-pulse uppercase">Rearranging</div>
-            <button @click="openEdit" class="edit-trigger">⚙️ DASHBOARD CONFIG</button>
-          </div>
+      <section class="flex-none w-full h-full snap-start pt-2 pb-2 px-2 sm:pt-4 sm:pb-6 sm:px-6 flex flex-col relative overflow-hidden">
+        <header class="absolute top-2 right-2 sm:top-4 sm:right-6 flex gap-4 z-50">
+          <div v-if="isDragging" class="px-3 py-1 bg-emerald-500 text-black text-[9px] font-black rounded-full animate-pulse uppercase">Rearranging</div>
+          <button @click="openEdit" class="edit-trigger">⚙️ CONFIG</button>
         </header>
 
-        <div class="grid grid-cols-12 gap-8 flex-grow overflow-hidden">
+        <div class="flex items-center gap-2 z-10 relative">
+          <div class="w-1 h-3 sm:h-4 bg-emerald-500 rounded-full shadow-[0_0_10px_rgba(16,185,129,0.5)]"></div>
+          <h2 class="text-[9px] sm:text-[10px] font-black tracking-[0.3em] text-gray-500 uppercase">System Overview</h2>
+        </div>
+
+        <div class="grid grid-cols-12 gap-2 sm:gap-6 flex-grow overflow-hidden mt-1 sm:mt-2">
           <!-- Metrics Sidebar (Expanded scroll area) -->
-          <div class="col-span-4 flex flex-col gap-6 overflow-hidden">
+          <div class="col-span-4 flex flex-col gap-3 sm:gap-6 overflow-hidden">
             <div class="flex-grow overflow-y-auto no-scrollbar pr-1">
-              <draggable v-model="allMetricsList" item-key="id" class="grid grid-cols-1 gap-4" @start="isDragging = true" @end="isDragging = false" :delay="500" :delay-on-touch-only="true">
+              <draggable v-model="allMetricsList" item-key="id" class="grid grid-cols-1 gap-2 sm:gap-4" @start="isDragging = true" @end="isDragging = false" :delay="500" :delay-on-touch-only="true">
                 <template #item="{ element: metric }">
-                  <div class="glass-panel p-5 rounded-2xl group transition-all hover:bg-white/[0.03] cursor-grab active:cursor-grabbing relative overflow-hidden">
-                    <div class="flex justify-between items-start mb-2">
-                      <span class="text-[9px] font-bold tracking-widest text-gray-500 uppercase">{{ metric.label }}</span>
-                      <div :class="`w-2 h-2 rounded-full bg-${metric.iconColor}-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]`"></div>
+                  <div class="glass-panel p-3 sm:p-5 rounded-xl sm:rounded-2xl group transition-all hover:bg-white/[0.03] cursor-grab active:cursor-grabbing relative overflow-hidden">
+                    <div class="flex justify-between items-start mb-1 sm:mb-2">
+                      <span class="text-[8px] sm:text-[9px] font-bold tracking-widest text-gray-500 uppercase">{{ metric.label }}</span>
+                      <div :class="`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-${metric.iconColor}-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]`"></div>
                     </div>
                     <div class="flex items-baseline gap-1">
-                      <span class="text-2xl font-black tabular-nums">{{ telemetry[metric.source] || '0' }}{{ metric.unit }}</span>
-                      <span class="text-[9px] font-bold text-gray-600 uppercase">{{ metric.suffix }}</span>
+                      <span class="text-xl sm:text-2xl font-black tabular-nums">{{ telemetry[metric.source] || '0' }}{{ metric.unit }}</span>
+                      <span class="text-[8px] sm:text-[9px] font-bold text-gray-600 uppercase">{{ metric.suffix }}</span>
                     </div>
                   </div>
                 </template>
@@ -71,56 +63,56 @@
           </div>
 
           <!-- Central Clock & Area -->
-          <div class="col-span-8 flex flex-col gap-6 overflow-hidden">
-            <div class="flex-grow glass-panel rounded-3xl relative overflow-hidden flex flex-col items-center justify-center p-8">
+          <div class="col-span-8 flex flex-col gap-3 sm:gap-6 overflow-hidden">
+            <div class="flex-grow glass-panel rounded-2xl sm:rounded-3xl relative overflow-hidden flex flex-col items-center justify-center p-4 sm:p-8">
               <canvas ref="clockCanvas" class="absolute inset-0 w-full h-full pointer-events-none opacity-40"></canvas>
               
               <div v-if="config.clockEngine === 'DIGITAL'" class="relative z-10 flex flex-col items-center text-center">
-                <div v-if="config.digitalStyle === 'Modern'" class="flex gap-4 items-center">
+                <div v-if="config.digitalStyle === 'Modern'" class="flex gap-2 sm:gap-4 items-center">
                   <div class="clock-digit">{{ currentTime.h1 }}{{ currentTime.h2 }}</div>
-                  <div class="text-6xl font-black text-emerald-500/50">:</div>
+                  <div class="text-4xl sm:text-6xl font-black text-emerald-500/50">:</div>
                   <div class="clock-digit">{{ currentTime.m1 }}{{ currentTime.m2 }}</div>
-                  <div class="text-4xl font-black text-white/20 tabular-nums ml-2 self-end mb-4">{{ currentTime.s1 }}{{ currentTime.s2 }}</div>
+                  <div class="text-2xl sm:text-4xl font-black text-white/20 tabular-nums ml-1 sm:ml-2 self-end mb-2 sm:mb-4">{{ currentTime.s1 }}{{ currentTime.s2 }}</div>
                 </div>
                 <div v-else-if="config.digitalStyle === 'Cyber'" class="text-center">
-                  <div class="text-[160px] font-black leading-none tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white to-white/5">{{ currentTime.h1 }}{{ currentTime.h2 }}:{{ currentTime.m1 }}{{ currentTime.m2 }}</div>
-                  <div class="text-3xl font-black text-emerald-500 opacity-80 mt-[-20px]">{{ currentTime.s1 }}{{ currentTime.s2 }}</div>
+                  <div class="text-6xl sm:text-[160px] font-black leading-none tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white to-white/5">{{ currentTime.h1 }}{{ currentTime.h2 }}:{{ currentTime.m1 }}{{ currentTime.m2 }}</div>
+                  <div class="text-xl sm:text-3xl font-black text-emerald-500 opacity-80 mt-[-10px] sm:mt-[-20px]">{{ currentTime.s1 }}{{ currentTime.s2 }}</div>
                 </div>
-                <div v-else class="flex gap-4 items-baseline">
-                  <div class="text-9xl font-black tracking-tighter leading-none">{{ currentTime.h1 }}{{ currentTime.h2 }}</div>
-                  <div class="text-5xl font-black text-emerald-500">{{ currentTime.m1 }}{{ currentTime.m2 }}</div>
-                  <div class="text-2xl font-bold text-gray-700 tabular-nums">{{ currentTime.s1 }}{{ currentTime.s2 }}</div>
+                <div v-else class="flex gap-2 sm:gap-4 items-baseline">
+                  <div class="text-6xl sm:text-9xl font-black tracking-tighter leading-none">{{ currentTime.h1 }}{{ currentTime.h2 }}</div>
+                  <div class="text-3xl sm:text-5xl font-black text-emerald-500">{{ currentTime.m1 }}{{ currentTime.m2 }}</div>
+                  <div class="text-lg sm:text-2xl font-bold text-gray-700 tabular-nums">{{ currentTime.s1 }}{{ currentTime.s2 }}</div>
                 </div>
 
-                <div class="mt-8 space-y-2 animate-fade-in">
-                  <div class="text-lg font-bold tracking-[0.15em] text-white/80 uppercase">{{ currentDate }}</div>
+                <div class="mt-4 sm:mt-8 space-y-1 sm:space-y-2 animate-fade-in">
+                  <div class="text-sm sm:text-lg font-bold tracking-[0.15em] text-white/80 uppercase">{{ currentDate }}</div>
                   <div class="flex items-center justify-center gap-2">
                     <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_10px_#10b981]"></span>
-                    <span class="text-xs font-black text-emerald-500 uppercase tracking-[0.4em]">{{ config.customLocation }}</span>
+                    <span class="text-[10px] sm:text-xs font-black text-emerald-500 uppercase tracking-[0.4em]">{{ config.customLocation }}</span>
                   </div>
                 </div>
               </div>
 
-              <div v-else class="relative z-10 mt-auto mb-4 text-center">
-                <div class="text-lg font-bold tracking-[0.15em] text-white/80 uppercase">{{ currentDate }}</div>
-                <div class="text-xs font-black text-emerald-500 uppercase tracking-[0.4em] mt-1">{{ config.customLocation }}</div>
+              <div v-else class="relative z-10 mt-auto mb-2 sm:mb-4 text-center">
+                <div class="text-sm sm:text-lg font-bold tracking-[0.15em] text-white/80 uppercase">{{ currentDate }}</div>
+                <div class="text-[10px] sm:text-xs font-black text-emerald-500 uppercase tracking-[0.4em] mt-1">{{ config.customLocation }}</div>
               </div>
             </div>
 
             <!-- Draggable Quick Controls -->
-            <div class="h-32 sm:h-40 overflow-hidden">
-              <draggable v-model="automation" item-key="id" class="grid grid-cols-4 gap-4 h-full" @start="isDragging = true" @end="isDragging = false" :delay="500" :delay-on-touch-only="true">
+            <div class="h-20 sm:h-32 lg:h-40 overflow-hidden">
+              <draggable v-model="automation" item-key="id" class="grid grid-cols-4 gap-2 sm:gap-4 h-full" @start="isDragging = true" @end="isDragging = false" :delay="500" :delay-on-touch-only="true">
                 <template #item="{ element: node }">
                   <div @click.stop="toggleNode(node)" 
-                       class="node-card glass-panel rounded-2xl p-4 flex flex-col justify-between cursor-grab transition-all active:scale-95 group overflow-hidden" 
+                       class="node-card glass-panel rounded-xl sm:rounded-2xl p-2 sm:p-4 flex flex-col justify-between cursor-grab transition-all active:scale-95 group overflow-hidden" 
                        :class="{ 'node-active': node.state }">
-                    <div class="w-10 h-10 rounded-xl flex items-center justify-center text-xl transition-all duration-500" 
+                    <div class="w-7 h-7 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl flex items-center justify-center text-sm sm:text-xl transition-all duration-500" 
                          :class="node.state ? 'bg-emerald-500 text-black node-glow' : 'bg-white/5 text-gray-500'">
                       {{ node.icon }}
                     </div>
                     <div>
-                      <div class="text-xs font-black truncate">{{ node.name }}</div>
-                      <div class="text-[8px] font-bold text-gray-500 uppercase tracking-widest">{{ node.state ? 'Online' : 'Standby' }}</div>
+                      <div class="text-[10px] sm:text-xs font-black truncate">{{ node.name }}</div>
+                      <div class="text-[7px] sm:text-[8px] font-bold text-gray-500 uppercase tracking-widest">{{ node.state ? 'Online' : 'Standby' }}</div>
                     </div>
                   </div>
                 </template>
@@ -131,16 +123,12 @@
       </section>
 
       <!-- PAGE 2: NODES MATRIX -->
-      <section class="flex-none w-full h-full snap-start p-6 sm:p-10 flex flex-col overflow-hidden">
-        <header class="flex justify-between items-start mb-10">
-          <div v-if="config.pageTitles">
-            <h2 class="text-5xl font-black tracking-tighter">{{ config.pageTitles[2] || 'NODES' }}<span class="text-emerald-500">.</span></h2>
-            <p class="text-xs text-gray-500 font-bold uppercase tracking-widest mt-2">{{ automation.length }} Connected Units</p>
-          </div>
-          <button @click="openEdit" class="edit-trigger">⚙️ MANAGE MATRIX</button>
+      <section class="flex-none w-full h-full snap-start pt-2 pb-2 px-2 sm:pt-4 sm:pb-6 sm:px-6 flex flex-col relative overflow-hidden">
+        <header class="absolute top-2 right-2 sm:top-4 sm:right-6 flex gap-4 z-50">
+          <button @click="openEdit" class="edit-trigger">⚙️ MATRIX</button>
         </header>
         <draggable v-model="automation" item-key="id" 
-                   class="grid grid-cols-4 gap-6 flex-grow overflow-y-auto no-scrollbar pb-24" 
+                   class="grid grid-cols-4 gap-2 sm:gap-6 flex-grow overflow-y-auto no-scrollbar pb-16 sm:pb-20 mt-8 sm:mt-12" 
                    @start="isDragging = true" @end="isDragging = false" :delay="500" :delay-on-touch-only="true">
           <template #item="{ element: node }">
             <div @click.stop="toggleNode(node)" 
@@ -162,30 +150,31 @@
       </section>
 
       <!-- PAGE 3: ENVIRONMENT CENTER -->
-      <section class="flex-none w-full h-full snap-start p-6 sm:p-10 flex flex-col overflow-hidden">
-        <header class="flex justify-between items-start mb-6">
-          <h2 v-if="config.pageTitles" class="text-5xl font-black tracking-tighter">{{ config.pageTitles[3] || 'CLIMATE' }}<span class="text-blue-500">.</span></h2>
-          <button @click="openEdit" class="edit-trigger">⚙️ CLIMATE SETUP</button>
+      <section class="flex-none w-full h-full snap-start pt-2 pb-2 px-2 sm:pt-4 sm:pb-6 sm:px-6 flex flex-col relative overflow-hidden">
+        <header class="absolute top-2 right-2 sm:top-4 sm:right-6 flex gap-4 z-50">
+          <button @click="openEdit" class="edit-trigger">⚙️ SETUP</button>
         </header>
-        <div class="grid grid-cols-12 gap-8 h-full overflow-hidden pb-24">
-          <div class="col-span-8 flex flex-col gap-6">
-            <div class="glass-panel p-8 rounded-3xl flex-grow flex flex-col">
-              <h3 class="text-xs font-black tracking-widest text-blue-400 uppercase mb-6">Environment Data Hub</h3>
-              <div class="flex-grow flex flex-col gap-3">
-                <div v-for="i in 5" :key="i" class="flex justify-between items-center p-4 bg-white/[0.01] rounded-2xl border border-white/5">
-                  <span class="w-24 text-sm font-bold uppercase text-gray-500">Day {{ i+1 }}</span>
-                  <span class="text-2xl">🌤️</span>
-                  <span class="text-xl font-black tabular-nums">2{{ i+4 }}°</span>
-                  <div class="w-32 h-1.5 bg-white/5 rounded-full overflow-hidden"><div class="h-full bg-blue-500/50" :style="{ width: (40+i*10)+'%' }"></div></div>
+        <div class="grid grid-cols-12 gap-2 sm:gap-6 h-full mt-1 sm:mt-2">
+          <!-- Left Column -->
+          <div class="col-span-8 h-full flex flex-col">
+            <div class="glass-panel p-4 sm:p-8 rounded-3xl flex-grow flex flex-col overflow-hidden">
+              <h3 class="text-[10px] sm:text-xs font-black tracking-widest text-blue-400 uppercase mb-4 sm:mb-6 flex-shrink-0">Environment Data Hub</h3>
+              <div class="flex-grow flex flex-col gap-2 sm:gap-3 overflow-y-auto no-scrollbar pr-1 sm:pr-2">
+                <div v-for="i in 7" :key="i" class="flex justify-between items-center p-3 sm:p-4 bg-white/[0.01] rounded-2xl flex-shrink-0">
+                  <span class="w-16 sm:w-24 text-xs sm:text-sm font-bold uppercase text-gray-500">Day {{ i+1 }}</span>
+                  <span class="text-xl sm:text-2xl">🌤️</span>
+                  <span class="text-lg sm:text-xl font-black tabular-nums">2{{ i+4 }}°</span>
+                  <div class="w-24 sm:w-32 h-1.5 bg-white/5 rounded-full overflow-hidden"><div class="h-full bg-blue-500/50" :style="{ width: (40+i*5)+'%' }"></div></div>
                 </div>
               </div>
             </div>
           </div>
-          <div class="col-span-4 flex flex-col gap-6">
-            <div v-for="e in environmentalMetrics" :key="e.id" class="glass-panel p-6 rounded-3xl flex-grow flex flex-col items-center justify-center gap-2">
-              <span class="text-[10px] font-black uppercase text-gray-500 tracking-widest">{{ e.label }}</span>
-              <span class="text-5xl font-black" :class="`text-${e.color}-500`">{{ e.value }}{{ e.unit }}</span>
-              <span class="text-[10px] font-bold text-gray-700 uppercase tracking-widest">{{ e.status }}</span>
+          <!-- Right Column -->
+          <div class="col-span-4 h-full flex flex-col gap-2 sm:gap-6 overflow-y-auto no-scrollbar pr-1 sm:pr-2 pb-2">
+            <div v-for="e in environmentalMetrics" :key="e.id" class="glass-panel p-4 sm:p-6 rounded-3xl flex-1 flex flex-col items-center justify-center gap-1 sm:gap-2 min-h-[120px] sm:min-h-[160px] flex-shrink-0">
+              <span class="text-[8px] sm:text-[10px] font-black uppercase text-gray-500 tracking-widest">{{ e.label }}</span>
+              <span class="text-3xl sm:text-5xl font-black" :class="`text-${e.color}-500`">{{ e.value }}{{ e.unit }}</span>
+              <span class="text-[8px] sm:text-[10px] font-bold text-gray-700 uppercase tracking-widest">{{ e.status }}</span>
             </div>
           </div>
         </div>
@@ -193,7 +182,7 @@
     </div>
 
     <!-- Global Voice Button -->
-    <button @click="startVoice" class="fixed top-8 right-8 w-12 h-12 bg-white/5 hover:bg-emerald-500/20 backdrop-blur-3xl border border-white/10 rounded-full flex items-center justify-center text-xl transition-all z-[100] active:scale-90">
+    <button @click="startVoice" class="fixed bottom-6 right-6 sm:bottom-8 sm:right-8 w-10 h-10 sm:w-12 sm:h-12 bg-white/5 hover:bg-emerald-500/20 backdrop-blur-3xl border border-white/10 rounded-full flex items-center justify-center text-lg sm:text-xl transition-all z-[100] active:scale-90">
       <span :class="isListening ? 'animate-pulse text-emerald-500' : 'text-white'">🎙️</span>
     </button>
 
@@ -210,10 +199,16 @@
           </header>
 
           <div class="flex-grow space-y-12 overflow-y-auto no-scrollbar pr-2 pb-10">
-            <!-- Page Title -->
+            <!-- Viewport Zoom -->
             <div class="space-y-4">
-              <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Page Display Name</label>
-              <input v-model="config.pageTitles[currentPage]" class="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-sm font-bold focus:border-emerald-500 outline-none transition-colors">
+              <label class="text-[10px] font-black text-emerald-500 uppercase tracking-widest flex justify-between items-center">
+                Global Zoom / Scale
+                <div class="flex gap-2">
+                  <button @click="config.zoomLevel = Math.max(50, (config.zoomLevel || 100) - 5)" class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-500 flex items-center justify-center font-black">-</button>
+                  <span class="w-12 text-center text-white">{{ config.zoomLevel || 100 }}%</span>
+                  <button @click="config.zoomLevel = Math.min(150, (config.zoomLevel || 100) + 5)" class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-500 flex items-center justify-center font-black">+</button>
+                </div>
+              </label>
             </div>
 
             <!-- Page 1 Specifics (Expanded Metrics Manager) -->
@@ -304,13 +299,11 @@ import draggable from 'vuedraggable'
 
 const DEFAULT_CONFIG = {
   clockEngine: 'DIGITAL', digitalStyle: 'Modern', analogStyle: 'Neon', analogSweep: true, 
-  is24Hour: true, tempUnit: 'C', customLocation: 'Home',
-  pageTitles: { 1: 'DASHBOARD', 2: 'NODES', 3: 'CLIMATE' }
+  is24Hour: true, tempUnit: 'C', customLocation: 'Home', zoomLevel: 100
 }
 
 const savedConfig = JSON.parse(localStorage.getItem('smart_config')) || {}
 const config = reactive({ ...DEFAULT_CONFIG, ...savedConfig })
-if (!config.pageTitles) config.pageTitles = DEFAULT_CONFIG.pageTitles
 
 const automation = ref(JSON.parse(localStorage.getItem('smart_nodes')) || [
   { id: 1, name: 'Main Lights', state: false, icon: '💡' }, { id: 2, name: 'Air Purifier', state: true, icon: '🌪️' },
@@ -403,9 +396,9 @@ async function fetchWeather(lat, lon) {
 .node-active { @apply bg-emerald-500/[0.12] border-emerald-500/40; box-shadow: 0 10px 40px -10px rgba(16, 185, 129, 0.25); transform: translateY(-2px); }
 .node-glow { filter: drop-shadow(0 0 12px rgba(16, 185, 129, 0.8)); animation: glow-pulse 2s infinite alternate; }
 @keyframes glow-pulse { from { filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.6)); } to { filter: drop-shadow(0 0 18px rgba(16, 185, 129, 1)); } }
-.edit-trigger { @apply px-4 py-2 bg-white/5 hover:bg-white/10 rounded-full text-[9px] font-black tracking-widest uppercase transition-all border border-white/5; }
-.clock-digit { @apply bg-white/[0.03] border border-white/10 rounded-2xl px-6 py-4 text-8xl font-black tabular-nums transition-all shadow-[inset_0_2px_10px_rgba(255,255,255,0.02)]; }
-.glass-panel { @apply bg-white/[0.02] backdrop-blur-3xl border border-white/5 shadow-2xl; }
+.edit-trigger { @apply px-3 py-1.5 sm:px-4 sm:py-2 bg-white/5 hover:bg-white/10 rounded-full text-[8px] sm:text-[9px] font-black tracking-widest uppercase transition-all border border-white/5; }
+.clock-digit { @apply bg-white/[0.03] border border-white/10 rounded-xl sm:rounded-2xl px-3 py-2 sm:px-6 sm:py-4 text-5xl lg:text-8xl font-black tabular-nums transition-all shadow-[inset_0_2px_10px_rgba(255,255,255,0.02)]; }
+.glass-panel { @apply bg-white/[0.02] backdrop-blur-3xl shadow-2xl; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .drawer-enter-active, .drawer-leave-active { transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
 .drawer-enter-from, .drawer-leave-to { transform: translateX(100%); }
